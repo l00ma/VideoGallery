@@ -1,0 +1,14 @@
+# Sorties de build (produites par build.sh)
+/dist/
+/gui/build/bin/
+/videogallery
+/videogallery.exe
+
+# Vidéos et galeries de test
+/test/
+
+# Éditeurs / système
+.idea/
+.vscode/
+*.swp
+.DS_Store

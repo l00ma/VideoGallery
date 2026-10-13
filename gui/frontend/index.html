@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Video Gallery</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <section class="card">
+    <label class="row">
+      <span class="lbl">Étape 1 – Répertoire des vidéos</span>
+      <span class="field">
+        <input id="videoDir" type="text" spellcheck="false" autocomplete="off">
+        <button id="browse" type="button" title="Choisir un répertoire">…</button>
+      </span>
+    </label>
+
+    <label class="row">
+      <span class="lbl">Étape 2 – Nom de la galerie</span>
+      <input id="name" type="text" maxlength="64" placeholder="Par défaut : nom du répertoire">
+    </label>
+
+    <div class="row">
+      <span class="lbl">Étape 3 – Miniatures</span>
+      <span class="inline">
+        <label>par ligne <input id="cols" type="number" min="1" max="8" step="1"></label>
+        <label>par colonne <input id="rows" type="number" min="1" max="20" step="1"></label>
+      </span>
+    </div>
+  </section>
+
+  <fieldset class="card">
+    <legend>Options</legend>
+    <label class="check"><input id="sort" type="checkbox"> Tri alphabétique des vidéos</label>
+    <div class="inline">
+      <label>Largeur des captures
+        <input id="frameWidth" type="number" min="80" max="1920" step="10"> pixels
+      </label>
+      <span class="hint">Largeur de chacune des 9 captures de la planche (hauteur selon la vidéo). Les miniatures de l'index s'adaptent d'elles-mêmes au nombre de colonnes.</span>
+    </div>
+    <div class="inline">
+      <label>Couleur de fond <input id="background" type="color"> <code id="backgroundHex"></code></label>
+      <label>Couleur du texte <input id="foreground" type="color"> <code id="foregroundHex"></code></label>
+    </div>
+    <label class="check"><input id="openBrowser" type="checkbox"> Ouvrir la galerie dans le navigateur à la fin</label>
+  </fieldset>
+
+  <section class="console-wrap">
+    <div class="console-head">
+      <span>Console d'information</span>
+      <progress id="progress" max="100" value="0" hidden></progress>
+    </div>
+    <pre id="console" aria-live="polite"></pre>
+  </section>
+
+  <section class="actions">
+    <button id="create" type="button" class="primary">Créer la galerie</button>
+    <button id="cancel" type="button" hidden>Annuler</button>
+    <button id="reset" type="button">Effacer les valeurs</button>
+    <button id="legacy" type="button" title="Reprendre un fichier mes_valeurs.sav de l'ancienne version Perl">Importer un ancien .sav</button>
+    <button id="quit" type="button">Quitter</button>
+  </section>
+</main>
+
+<footer>
+  <span id="status">Étape 1 : indiquez le répertoire de vos vidéos</span>
+  <span id="version"></span>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

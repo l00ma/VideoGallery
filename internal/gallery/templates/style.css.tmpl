@@ -1,0 +1,122 @@
+:root {
+  --bg: {{.Background}};
+  --fg: {{.Foreground}};
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 1rem;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Arial, Helvetica, sans-serif;
+  text-align: center;
+}
+
+a { color: inherit; text-decoration: none; }
+a:hover { font-weight: bold; }
+
+header {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 4fr) 1fr;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+h1 {
+  margin: 0;
+  font-family: Impact, Arial, sans-serif;
+  font-size: 2.2em;
+}
+
+.video-title { font-size: 1.2em; font-family: Arial, sans-serif; font-weight: normal; }
+.num { font-size: 1em; }
+small { font-size: 0.7em; overflow-wrap: anywhere; }
+.side { display: flex; justify-content: center; }
+
+/* Boutons de navigation : teintés avec la couleur du texte, ils s'adaptent
+   à n'importe quel couple fond/texte choisi. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  color: var(--fg);
+  background: rgba(0, 0, 0, 0.12);
+  background: color-mix(in srgb, var(--fg) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 25%, transparent);
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+.btn:hover {
+  font-weight: normal;
+  color: var(--bg);
+  background: var(--fg);
+  transform: scale(1.08);
+}
+.btn:active { transform: scale(0.96); }
+.btn:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
+.btn.pill {
+  width: auto;
+  height: auto;
+  padding: 0.55em 1.2em 0.55em 1em;
+  border-radius: 999px;
+  font-size: 0.95em;
+}
+.player p { margin: 1rem 0; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr));
+  gap: 1.2rem;
+  margin: 0 auto;
+}
+
+figure { margin: 0; }
+figcaption { margin-bottom: 0.3rem; }
+/* La miniature remplit sa colonne : sa taille suit le nombre de colonnes
+   choisi. width/height dans le HTML réservent la place avant le chargement. */
+figure img { display: block; width: 100%; height: auto; }
+
+/* Le ratio est fixé dès le départ : sans cela, Chromium/Brave dimensionne le
+   lecteur d'après le poster (miniature) tant que les métadonnées ne sont pas
+   chargées, et il saute à la taille réelle au lancement. */
+.player video {
+  display: block;
+  width: 100%;
+  max-width: min(100%, calc(80vh * var(--ratio, 1.7778)));
+  aspect-ratio: var(--ratio, 1.7778);
+  height: auto;
+  margin: 0 auto;
+  background: #000;
+}
+.sheet { max-width: 100%; height: auto; }
+
+.pager { margin: 1.5rem 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
+.pager a, .pager strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.4em;
+  height: 2.4em;
+  padding: 0 0.6em;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 25%, transparent);
+}
+.pager a:hover { font-weight: normal; color: var(--bg); background: var(--fg); }
+.pager strong { color: var(--bg); background: var(--fg); }
+
+footer {
+  margin-top: 1.5rem;
+  font-family: Impact, Arial, sans-serif;
+  font-size: 0.8em;
+}
+
+@media (max-width: 700px) {
+  .grid { --cols: 2 !important; }
+  h1 { font-size: 1.4em; }
+}

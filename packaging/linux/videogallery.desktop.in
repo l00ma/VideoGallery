@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=The Video Gallery
+Name[fr]=The Video Gallery
+GenericName=Video gallery generator
+GenericName[fr]=Générateur de galerie vidéo
+Comment=Generate a static HTML gallery for a folder of videos
+Comment[fr]=Génère une galerie HTML statique pour un répertoire de vidéos
+Exec=@EXEC@
+Icon=videogallery
+Terminal=false
+Categories=AudioVideo;Video;
+Keywords=video;gallery;thumbnails;galerie;vidéo;miniatures;
+# Doit correspondre à la classe de la fenêtre (WM_CLASS) pour que GNOME et KDE
+# lui associent cette icône.
+StartupWMClass=VideoGallery

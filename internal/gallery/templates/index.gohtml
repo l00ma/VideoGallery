@@ -1,0 +1,21 @@
+{{template "head"}}<title>{{.Gallery}} - {{.TotalLabel}}</title>
+</head>
+<body>
+<header>
+  <nav class="side">{{if .Prev}}<a class="btn" href="{{.Prev}}" title="page précédente" aria-label="Page précédente">{{template "icon-prev"}}</a>{{end}}</nav>
+  <h1>Galerie {{.Gallery}} - {{.TotalLabel}}</h1>
+  <nav class="side">{{if .Next}}<a class="btn" href="{{.Next}}" title="page suivante" aria-label="Page suivante">{{template "icon-next"}}</a>{{end}}</nav>
+</header>
+<main class="grid" style="--cols: {{.Cols}}">
+{{- range .Cards}}
+  <figure>
+    <figcaption><span class="num">Vidéo {{.Number}}</span> <small>{{.Name}}</small></figcaption>
+    <a href="{{.Href}}" title="voir la vidéo"><img src="{{.Thumb}}" width="{{.ThumbW}}" height="{{.ThumbH}}" loading="lazy" alt="{{.Name}}"></a>
+  </figure>
+{{- end}}
+</main>
+{{if .Links}}<nav class="pager">
+{{- range .Links}}{{if .Current}}<strong>{{.Number}}</strong>{{else}}<a href="{{.Href}}" title="aller à la page {{.Number}}">{{.Number}}</a>{{end}} {{end}}
+</nav>
+{{end}}{{template "footer" .Version}}</body>
+</html>

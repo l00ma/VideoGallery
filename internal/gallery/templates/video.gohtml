@@ -1,0 +1,18 @@
+{{template "head"}}<title>{{.Gallery}} - Vidéo {{.Number}} - {{.Name}}</title>
+</head>
+<body>
+<header>
+  <nav class="side"><a class="btn" href="{{.Prev}}" title="vidéo précédente" aria-label="Vidéo précédente">{{template "icon-prev"}}</a></nav>
+  <h1 class="video-title"><span class="num">Vidéo {{.Number}}/{{.Total}}</span> <small>{{.Name}}</small></h1>
+  <nav class="side"><a class="btn" href="{{.Next}}" title="vidéo suivante" aria-label="Vidéo suivante">{{template "icon-next"}}</a></nav>
+</header>
+<main class="player">
+  <video controls preload="metadata" poster="{{.Poster}}" style="--ratio: {{.Ratio}}">
+    <source src="{{.Source}}" type="{{.MIME}}">
+    Votre navigateur ne supporte pas la balise vidéo.
+  </video>
+  <p><a class="btn pill" href="{{.Back}}" title="page principale">{{template "icon-grid"}}<span>Retour à la galerie</span></a></p>
+  <img class="sheet" src="{{.Sheet}}" width="{{.SheetW}}" height="{{.SheetH}}" loading="lazy" alt="Planche de captures de {{.Name}}">
+</main>
+{{template "footer" .Version}}</body>
+</html>

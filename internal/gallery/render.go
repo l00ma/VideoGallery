@@ -143,18 +143,18 @@ func render(opts Options, items []item) (int, error) {
 
 	for i, it := range items {
 		n := i + 1
-		prev, next := n-1, n+1
-		if prev < 1 {
-			prev = total
+		var prev, next string // vides aux extrémités : pas de navigation circulaire
+		if n > 1 {
+			prev = videoFile(n - 1)
 		}
-		if next > total {
-			next = 1
+		if n < total {
+			next = videoFile(n + 1)
 		}
 		v := videoView{
 			Gallery: opts.Name, Number: n, Total: total, Name: it.Name,
 			Source: urlPath(filepath.ToSlash(filepath.Join(rel, it.Name))), MIME: it.MIME,
 			Poster: urlPath(it.Thumb), Ratio: float64(it.ThumbW) / float64(it.ThumbH), Sheet: urlPath(it.Sheet), SheetW: it.SheetW, SheetH: it.SheetH,
-			Prev: videoFile(prev), Next: videoFile(next),
+			Prev: prev, Next: next,
 			Back: pageFile(i/perPage + 1), Version: Version,
 		}
 		if err := writePage(opts.OutDir, videoFile(n), "video", v); err != nil {

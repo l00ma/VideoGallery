@@ -2,9 +2,9 @@
 </head>
 <body>
 <header class="video-head">
-  <nav class="side"><a class="btn" href="{{.Prev}}" title="vidéo précédente" aria-label="Vidéo précédente">{{template "icon-prev"}}</a></nav>
+  <nav class="side">{{if .Prev}}<a class="btn" href="{{.Prev}}" title="vidéo précédente" aria-label="Vidéo précédente">{{template "icon-prev"}}</a>{{end}}</nav>
   <h1 class="video-title"><span class="num">Vidéo {{.Number}}/{{.Total}}</span> <small>{{.Name}}</small></h1>
-  <nav class="side"><a class="btn" href="{{.Next}}" title="vidéo suivante" aria-label="Vidéo suivante">{{template "icon-next"}}</a></nav>
+  <nav class="side">{{if .Next}}<a class="btn" href="{{.Next}}" title="vidéo suivante" aria-label="Vidéo suivante">{{template "icon-next"}}</a>{{end}}</nav>
 </header>
 <main class="player">
   <video controls preload="metadata" poster="{{.Poster}}" style="--ratio: {{.Ratio}}">
@@ -13,9 +13,9 @@
   </video>
   <p><a class="btn pill" href="{{.Back}}" title="page principale">{{template "icon-grid"}}<span>Retour à la galerie</span></a></p>
   <div class="sheet-row">
-    <a class="btn" href="{{.Prev}}" title="vidéo précédente" aria-label="Vidéo précédente">{{template "icon-prev"}}</a>
+    {{if .Prev}}<a class="btn" href="{{.Prev}}" title="vidéo précédente" aria-label="Vidéo précédente">{{template "icon-prev"}}</a>{{else}}<span></span>{{end}}
     <img class="sheet" src="{{.Sheet}}" width="{{.SheetW}}" height="{{.SheetH}}" loading="lazy" alt="Planche de captures de {{.Name}}">
-    <a class="btn" href="{{.Next}}" title="vidéo suivante" aria-label="Vidéo suivante">{{template "icon-next"}}</a>
+    {{if .Next}}<a class="btn" href="{{.Next}}" title="vidéo suivante" aria-label="Vidéo suivante">{{template "icon-next"}}</a>{{else}}<span></span>{{end}}
   </div>
 </main>
 {{template "footer" .Version}}</body>

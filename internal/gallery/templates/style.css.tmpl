@@ -94,7 +94,18 @@ figure img { display: block; width: 100%; height: auto; }
   margin: 0 auto;
   background: #000;
 }
-.sheet { max-width: 100%; height: auto; }
+/* Planche encadrée par les boutons précédent/suivant. L'en-tête de la page vidéo
+   et cette ligne partagent les mêmes colonnes latérales (--side) : les boutons
+   du bas sont ainsi alignés verticalement sur ceux du haut. */
+.video-head, .sheet-row {
+  --side: 4rem;
+  display: grid;
+  grid-template-columns: var(--side) minmax(0, 1fr) var(--side);
+  align-items: center;
+  gap: 1rem;
+}
+.sheet-row { justify-items: center; }
+.sheet { min-width: 0; max-width: 100%; height: auto; }
 
 .pager { margin: 1.5rem 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
 .pager a, .pager strong {
@@ -119,4 +130,5 @@ footer {
 @media (max-width: 700px) {
   .grid { --cols: 2 !important; }
   h1 { font-size: 1.4em; }
+  .video-head, .sheet-row { --side: 3rem; gap: 0.4rem; }
 }

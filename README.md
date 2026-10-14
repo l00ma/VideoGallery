@@ -118,7 +118,7 @@ Le moteur est volontairement léger : bibliothèque standard Go et une seule dé
 
 ## Historique
 
-Projet né en 2013 en Perl + wxWidgets, réécrit en Go en 2026 (version 2.0). `The_Video_Gallery_HTML5.pl` et `conf/` sont conservés comme référence de l'ancienne version et ne sont plus maintenus.
+Projet né en 2013 en Perl + wxWidgets, réécrit en Go en 2026 (version 2.0). L'ancienne version Perl n'est plus dans ce dépôt.
 
 ## Auteur
 

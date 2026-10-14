@@ -8,6 +8,13 @@
 </head>
 <body>
 <main>
+  <section id="updateBar" class="update" hidden>
+    <span id="updateText"></span>
+    <progress id="updateProgress" max="100" hidden></progress>
+    <button id="updateNow" type="button" class="primary">Mettre à jour et redémarrer</button>
+    <button id="updateNotes" type="button">Voir les nouveautés</button>
+    <button id="updateLater" type="button">Plus tard</button>
+  </section>
   <section class="card">
     <label class="row">
       <span class="lbl">Étape 1 – Répertoire des vidéos</span>
@@ -45,6 +52,7 @@
       <label>Couleur du texte <input id="foreground" type="color"> <code id="foregroundHex"></code></label>
     </div>
     <label class="check"><input id="openBrowser" type="checkbox"> Ouvrir la galerie dans le navigateur à la fin</label>
+    <label class="check"><input id="checkUpdates" type="checkbox"> Rechercher les mises à jour au démarrage</label>
   </fieldset>
 
   <section class="console-wrap">
@@ -66,7 +74,7 @@
 
 <footer>
   <span id="status">Étape 1 : indiquez le répertoire de vos vidéos</span>
-  <span id="version"></span>
+  <span><button id="checkNow" type="button" class="link">Rechercher une mise à jour</button> <span id="version"></span></span>
 </footer>
 <script src="app.js"></script>
 </body>

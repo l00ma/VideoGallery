@@ -24,17 +24,21 @@ type Prefs struct {
 	Background  string `json:"background"` // #rrggbb
 	Foreground  string `json:"foreground"` // #rrggbb
 	OpenBrowser bool   `json:"openBrowser"`
+	// CheckUpdates : chercher une nouvelle version au démarrage (GUI) et au
+	// plus une fois par jour (CLI).
+	CheckUpdates bool `json:"checkUpdates"`
 }
 
 // Defaults : valeurs de l'ancienne version (fond 186,175,145 ; texte 51,51,51).
 func Defaults() Prefs {
 	return Prefs{
-		Cols:       4,
-		Rows:       5,
-		FrameWidth: 320,
-		Sort:       true,
-		Background: "#baaf91",
-		Foreground: "#333333",
+		Cols:         4,
+		Rows:         5,
+		FrameWidth:   320,
+		Sort:         true,
+		CheckUpdates: true,
+		Background:   "#baaf91",
+		Foreground:   "#333333",
 	}
 }
 

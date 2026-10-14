@@ -13,7 +13,12 @@ const el = {
   console: $("console"), progress: $("progress"), status: $("status"),
   create: $("create"), cancel: $("cancel"), reset: $("reset"),
   legacy: $("legacy"), quit: $("quit"), browse: $("browse"), version: $("version"),
+  checkUpdates: $("checkUpdates"), checkNow: $("checkNow"),
+  updateBar: $("updateBar"), updateText: $("updateText"), updateProgress: $("updateProgress"),
+  updateNow: $("updateNow"), updateNotes: $("updateNotes"), updateLater: $("updateLater"),
 };
+
+let pendingUpdate = null; // release proposée (objet renvoyé par CheckUpdate)
 
 let running = false;
 let toolsProblem = ""; // message si ffmpeg est introuvable
@@ -28,6 +33,7 @@ function fillForm(p) {
   el.frameWidth.value = p.frameWidth;
   el.sort.checked = !!p.sort;
   el.openBrowser.checked = !!p.openBrowser;
+  el.checkUpdates.checked = !!p.checkUpdates;
   el.background.value = p.background;
   el.foreground.value = p.foreground;
   showColors();
@@ -45,6 +51,7 @@ function readForm() {
     background: el.background.value,
     foreground: el.foreground.value,
     openBrowser: el.openBrowser.checked,
+    checkUpdates: el.checkUpdates.checked,
   };
 }
 
@@ -72,6 +79,7 @@ function refreshState() {
   el.legacy.disabled = running;
   el.browse.disabled = running;
   el.cancel.hidden = !running;
+  el.updateNow.disabled = running;
   if (!running) {
     setStatus(toolsProblem ? "ffmpeg est introuvable : voir la console." : err || "Prêt : cliquez sur « Créer la galerie ».");
   }
@@ -191,6 +199,48 @@ async function importLegacy() {
   }
 }
 
+// ---------- mises à jour ----------
+
+// manual : vrai quand l'utilisateur a cliqué lui-même (on lui répond toujours) ;
+// la vérification automatique reste silencieuse en cas d'échec (hors ligne...).
+async function checkUpdate(manual) {
+  try {
+    const rel = await backend().CheckUpdate();
+    if (!rel) {
+      if (manual) setStatus("Vous avez déjà la dernière version.");
+      return;
+    }
+    pendingUpdate = rel;
+    el.updateText.textContent = `La version ${rel.version} est disponible.`;
+    el.updateBar.hidden = false;
+  } catch (e) {
+    if (manual) setStatus("Recherche de mise à jour impossible : " + e);
+  }
+}
+
+async function applyUpdate() {
+  el.updateNow.disabled = true;
+  el.updateLater.disabled = true;
+  el.updateProgress.hidden = false;
+  el.updateProgress.removeAttribute("value");
+  el.updateText.textContent = "Téléchargement et installation… le programme va redémarrer.";
+  try {
+    await backend().ApplyUpdate(); // en cas de succès, la fenêtre se ferme et se rouvre
+  } catch (e) {
+    el.updateProgress.hidden = true;
+    el.updateNow.disabled = running;
+    el.updateLater.disabled = false;
+    el.updateText.textContent = "Mise à jour impossible : " + e;
+  }
+}
+
+function onUpdateProgress({ done, total }) {
+  if (total > 0) {
+    el.updateProgress.max = total;
+    el.updateProgress.value = done;
+  }
+}
+
 // ---------- initialisation ----------
 
 // Les liaisons Wails sont injectées de façon asynchrone : on les attend un peu.
@@ -212,6 +262,7 @@ async function init() {
   rt().EventsOn("log", (line) => log(line));
   rt().EventsOn("progress", onProgress);
   rt().EventsOn("done", onDone);
+  rt().EventsOn("updateProgress", onUpdateProgress);
 
   const [prefs, version, problem] = await Promise.all([
     backend().LoadPrefs(), backend().Version(), backend().ToolsStatus(),
@@ -225,7 +276,7 @@ async function init() {
     log("⚠ " + toolsProblem, "err");
   }
 
-  for (const id of ["videoDir", "name", "cols", "rows", "frameWidth", "sort", "openBrowser", "background", "foreground"]) {
+  for (const id of ["videoDir", "name", "cols", "rows", "frameWidth", "sort", "openBrowser", "checkUpdates", "background", "foreground"]) {
     el[id].addEventListener("input", () => { showColors(); refreshState(); });
   }
   el.browse.addEventListener("click", browse);
@@ -234,6 +285,14 @@ async function init() {
   el.reset.addEventListener("click", resetForm);
   el.legacy.addEventListener("click", importLegacy);
   el.quit.addEventListener("click", () => backend().Quit());
+  el.checkNow.addEventListener("click", () => checkUpdate(true));
+  el.updateNow.addEventListener("click", applyUpdate);
+  el.updateLater.addEventListener("click", () => { el.updateBar.hidden = true; });
+  el.updateNotes.addEventListener("click", () => {
+    if (pendingUpdate && pendingUpdate.url) rt().BrowserOpenURL(pendingUpdate.url);
+  });
+
+  if (prefs.checkUpdates) checkUpdate(false);
 }
 
 init();

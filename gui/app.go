@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 
@@ -12,6 +13,7 @@ import (
 
 	"videogallery/internal/gallery"
 	"videogallery/internal/prefs"
+	"videogallery/internal/update"
 )
 
 // App relie l'interface web au moteur de génération. Les méthodes exportées
@@ -19,8 +21,12 @@ import (
 type App struct {
 	ctx context.Context
 
-	mu     sync.Mutex
-	cancel context.CancelFunc // non nil pendant une génération
+	mu       sync.Mutex
+	cancel   context.CancelFunc // non nil pendant une génération
+	updating bool
+	pending  *update.Release // dernière release proposée par CheckUpdate
+
+	exe string // chemin réel de l'exécutable, relevé avant toute mise à jour
 }
 
 // Summary est le bilan d'une génération, envoyé à l'interface (événement « done »).
@@ -40,7 +46,13 @@ type Failure struct {
 	Error string `json:"error"`
 }
 
-func NewApp() *App { return &App{} }
+func NewApp() *App {
+	exe, _ := update.SelfPath()
+	if exe != "" {
+		update.CleanOld(filepath.Dir(exe)) // restes d'une mise à jour précédente (Windows)
+	}
+	return &App{exe: exe}
+}
 
 func (a *App) startup(ctx context.Context) { a.ctx = ctx }
 
@@ -192,3 +204,65 @@ func (a *App) OpenInBrowser(indexPath string) error {
 
 // Quit ferme l'application.
 func (a *App) Quit() { runtime.Quit(a.ctx) }
+
+// CheckUpdate cherche une release plus récente que la version courante.
+// Renvoie nil si l'on est à jour. L'interface décide quand l'appeler (selon la
+// préférence « Rechercher les mises à jour »).
+func (a *App) CheckUpdate() (*update.Release, error) {
+	rel, err := update.NewClient().Latest(a.ctx, gallery.Version)
+	if err != nil {
+		return nil, err
+	}
+	a.mu.Lock()
+	a.pending = rel
+	a.mu.Unlock()
+	return rel, nil
+}
+
+// ApplyUpdate installe la release trouvée par CheckUpdate (jamais une adresse
+// fournie par l'interface), rafraîchit l'entrée de menu, puis relance
+// l'application et ferme celle-ci. Progression : événement « updateProgress ».
+func (a *App) ApplyUpdate() error {
+	a.mu.Lock()
+	switch {
+	case a.cancel != nil:
+		a.mu.Unlock()
+		return errors.New("une génération est en cours : attendez la fin ou annulez-la")
+	case a.updating:
+		a.mu.Unlock()
+		return errors.New("une mise à jour est déjà en cours")
+	case a.pending == nil:
+		a.mu.Unlock()
+		return errors.New("aucune mise à jour à installer")
+	case a.exe == "":
+		a.mu.Unlock()
+		return errors.New("emplacement du programme introuvable")
+	}
+	a.updating = true
+	rel := a.pending
+	a.mu.Unlock()
+	defer func() {
+		a.mu.Lock()
+		a.updating = false
+		a.mu.Unlock()
+	}()
+
+	dir := filepath.Dir(a.exe)
+	_, err := update.NewClient().Apply(a.ctx, rel, dir, func(done, total int64) {
+		runtime.EventsEmit(a.ctx, "updateProgress", map[string]int64{"done": done, "total": total})
+	})
+	if err != nil {
+		return err
+	}
+	if _, err := update.RefreshShortcuts(dir); err != nil {
+		// La mise à jour elle-même a réussi : on le signale sans l'annuler.
+		runtime.EventsEmit(a.ctx, "log", "Entrée de menu non rafraîchie : "+err.Error())
+	}
+
+	// Relance : le nouveau processus démarre avant que celui-ci ne se ferme.
+	if err := exec.Command(a.exe).Start(); err != nil {
+		return fmt.Errorf("mise à jour installée, mais le redémarrage a échoué (%v) : relancez le programme", err)
+	}
+	runtime.Quit(a.ctx)
+	return nil
+}

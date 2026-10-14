@@ -191,6 +191,14 @@ MENU DES APPLICATIONS (optionnel, sans sudo)
   Les exécutables restent dans ce dossier : ne le déplacez pas après
   l'installation (sinon, relancez ./install.sh).
 
+MISES À JOUR
+  L'interface signale une nouvelle version au démarrage (case « Rechercher les
+  mises à jour au démarrage » pour la désactiver) et se met à jour d'un clic
+  en redémarrant. En ligne de commande : ./videogallery -update
+  (un avis s'affiche au plus une fois par jour ; -no-update-check le coupe).
+  Seuls les fichiers de ce dossier fournis par la release sont remplacés, et
+  l'entrée de menu installée par install.sh est rafraîchie.
+
 Réglages de l'interface : ~/.config/VideoGallery/prefs.json
 
 LICENCES
@@ -222,6 +230,12 @@ UTILISATION
 
 La galerie est écrite dans le sous-répertoire « pages » du répertoire des
 vidéos. Ouvrez pages\\index.html.
+
+MISES À JOUR
+  L'interface signale une nouvelle version au démarrage (case « Rechercher les
+  mises à jour au démarrage » pour la désactiver) et se met à jour d'un clic
+  en redémarrant. En ligne de commande : videogallery.exe -update
+  ffmpeg.exe et ffprobe.exe ne sont jamais touchés.
 
 NOTE
   Ces exécutables ne sont pas signés : Windows SmartScreen peut afficher un

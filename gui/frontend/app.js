@@ -57,8 +57,8 @@ function showColors() {
 function validate(p) {
   if (!p.videoDir) return "Indiquez le répertoire des vidéos.";
   const inRange = (n, min, max) => Number.isInteger(n) && n >= min && n <= max;
-  if (!inRange(p.cols, 1, 8)) return "Miniatures par ligne : entre 1 et 8.";
-  if (!inRange(p.rows, 1, 20)) return "Miniatures par colonne : entre 1 et 20.";
+  if (!inRange(p.cols, 2, 5)) return "Miniatures par ligne : entre 2 et 5.";
+  if (!inRange(p.rows, 2, 6)) return "Miniatures par colonne : entre 2 et 6.";
   if (!inRange(p.frameWidth, 80, 1920)) return "Largeur des captures : entre 80 et 1920 pixels.";
   return "";
 }

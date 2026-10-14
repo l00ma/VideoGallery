@@ -65,10 +65,10 @@ func Load(path string) Prefs {
 // sanitized remplace les valeurs hors bornes par celles par défaut.
 func (p Prefs) sanitized() Prefs {
 	d := Defaults()
-	if p.Cols < 1 || p.Cols > 20 {
+	if p.Cols < 2 || p.Cols > 5 {
 		p.Cols = d.Cols
 	}
-	if p.Rows < 1 || p.Rows > 50 {
+	if p.Rows < 2 || p.Rows > 6 {
 		p.Rows = d.Rows
 	}
 	if p.FrameWidth < 80 || p.FrameWidth > 1920 {

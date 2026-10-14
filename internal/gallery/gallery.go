@@ -279,10 +279,11 @@ const sheetLayout = 2
 
 // thumbWidth choisit la largeur de la miniature d'index selon le nombre de
 // colonnes : la page étire les miniatures sur toute sa largeur, il faut donc
-// plus de pixels quand il y a peu de colonnes (calé sur un écran de 1920 px).
+// plus de pixels quand il y a peu de colonnes (calé sur un écran de 1920 px,
+// en demi-résolution pour garder des fichiers légers).
 func thumbWidth(cols int) int {
-	w := (1800/cols + 39) / 40 * 40
-	return min(max(w, 320), 1280)
+	w := (900/cols + 39) / 40 * 40
+	return min(max(w, 160), 640)
 }
 
 // maxBaseName borne les noms de fichiers générés : la plupart des systèmes de

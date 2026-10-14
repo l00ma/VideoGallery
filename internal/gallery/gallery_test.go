@@ -118,8 +118,8 @@ func TestFormats(t *testing.T) {
 }
 
 func TestThumbWidth(t *testing.T) {
-	// moins de colonnes => miniatures plus larges, bornées à [320, 1280]
-	want := map[int]int{1: 1280, 2: 920, 3: 600, 4: 480, 5: 360, 6: 320, 8: 320, 20: 320}
+	// moins de colonnes => miniatures plus larges, bornées à [160, 640]
+	want := map[int]int{1: 640, 2: 480, 3: 320, 4: 240, 5: 200, 6: 160, 8: 160, 20: 160}
 	for cols, w := range want {
 		if got := thumbWidth(cols); got != w {
 			t.Errorf("thumbWidth(%d) = %d, attendu %d", cols, got, w)

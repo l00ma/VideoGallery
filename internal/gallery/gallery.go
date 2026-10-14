@@ -21,7 +21,7 @@ import (
 	"unicode/utf8"
 )
 
-const Version = "2.0.1"
+const Version = "2.0.2"
 
 var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 

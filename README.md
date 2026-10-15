@@ -49,7 +49,7 @@ Les archives `VideoGallery-<version>-linux-amd64.tar.gz` et `…-windows-amd64.z
 
 ### Interface graphique
 
-Lance `VideoGallery`, puis suis les étapes : répertoire des vidéos, nom de la galerie, nombre de miniatures par ligne (2 à 5) et par colonne (2 à 6). Les couleurs, la largeur des captures et l'ouverture automatique dans le navigateur sont dans « Options ». Les réglages sont mémorisés après chaque génération réussie (`~/.config/VideoGallery/prefs.json` sous Linux). La génération peut être annulée à tout moment.
+Lance `VideoGallery`, puis suis les étapes : répertoire des vidéos, nom de la galerie, nombre de miniatures par ligne (2 à 5) et par colonne (2 à 6). Les couleurs (avec un bouton pour inverser fond et texte), la largeur des captures et l'ouverture automatique dans le navigateur sont dans « Options ». Les réglages sont mémorisés après chaque génération réussie (`~/.config/VideoGallery/prefs.json` sous Linux). La génération peut être annulée à tout moment.
 
 Sous Linux, `./install.sh` ajoute « The Video Gallery » au menu des applications (sans `sudo`) ; `./install.sh --uninstall` le retire.
 
@@ -109,7 +109,7 @@ La version Windows est cross-compilée depuis Linux, sans CGO.
 |---|---|
 | `cmd/videogallery` | ligne de commande |
 | `internal/gallery` | moteur : analyse des vidéos, planches, pages HTML (templates embarqués) |
-| `internal/prefs` | préférences JSON, import de l'ancien `mes_valeurs.sav` |
+| `internal/prefs` | préférences JSON |
 | `internal/update` | recherche et installation des mises à jour |
 | `gui/` | interface [Wails v2](https://wails.io) (HTML/CSS/JS pur, sans npm), sous-module séparé |
 | `packaging/linux/` | entrée de menu (`.desktop`) et `install.sh` |

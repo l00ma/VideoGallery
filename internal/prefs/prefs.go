@@ -5,12 +5,9 @@ package prefs
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 )
 
 // Prefs reprend les champs de l'ancienne fenêtre Perl.
@@ -109,54 +106,4 @@ func validColor(c string) bool {
 	}
 	_, err := strconv.ParseUint(c[1:], 16, 32)
 	return err == nil
-}
-
-// ImportLegacy lit un fichier « mes_valeurs.sav » de la version Perl :
-//
-//	dir|nom|ligne|colonne|tri|largeur|hauteur|proportions|r,g,b|r,g,b|navigateur
-func ImportLegacy(path string) (Prefs, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return Prefs{}, err
-	}
-	f := strings.Split(strings.TrimSpace(string(data)), "|")
-	if len(f) < 11 {
-		return Prefs{}, fmt.Errorf("format inattendu : %d champs au lieu de 11", len(f))
-	}
-	p := Defaults()
-	p.VideoDir, p.Name = f[0], f[1]
-	if n, err := strconv.Atoi(f[2]); err == nil {
-		p.Cols = n
-	}
-	if n, err := strconv.Atoi(f[3]); err == nil {
-		p.Rows = n
-	}
-	p.Sort = f[4] == "1"
-	if n, err := strconv.Atoi(f[5]); err == nil {
-		p.FrameWidth = n
-	}
-	if c, err := rgbToHex(f[8]); err == nil {
-		p.Background = c
-	}
-	if c, err := rgbToHex(f[9]); err == nil {
-		p.Foreground = c
-	}
-	p.OpenBrowser = f[10] == "1"
-	return p.sanitized(), nil
-}
-
-func rgbToHex(s string) (string, error) {
-	parts := strings.Split(s, ",")
-	if len(parts) != 3 {
-		return "", errors.New("couleur attendue au format r,g,b")
-	}
-	var v [3]int
-	for i, part := range parts {
-		n, err := strconv.Atoi(strings.TrimSpace(part))
-		if err != nil || n < 0 || n > 255 {
-			return "", errors.New("composante de couleur invalide")
-		}
-		v[i] = n
-	}
-	return fmt.Sprintf("#%02x%02x%02x", v[0], v[1], v[2]), nil
 }

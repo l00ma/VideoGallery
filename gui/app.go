@@ -88,22 +88,6 @@ func (a *App) SavePrefs(p prefs.Prefs) error {
 	return prefs.Save(path, p)
 }
 
-// ImportLegacyPrefs lit un fichier mes_valeurs.sav de l'ancienne version Perl.
-func (a *App) ImportLegacyPrefs() (*prefs.Prefs, error) {
-	file, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:   "Choisir un fichier mes_valeurs.sav",
-		Filters: []runtime.FileFilter{{DisplayName: "Sauvegarde (*.sav)", Pattern: "*.sav"}},
-	})
-	if err != nil || file == "" {
-		return nil, err
-	}
-	p, err := prefs.ImportLegacy(file)
-	if err != nil {
-		return nil, err
-	}
-	return &p, nil
-}
-
 // ChooseDirectory ouvre le sélecteur de dossier natif. Renvoie "" si annulé.
 func (a *App) ChooseDirectory(current string) (string, error) {
 	opts := runtime.OpenDialogOptions{Title: "Répertoire des vidéos"}

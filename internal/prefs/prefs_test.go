@@ -45,26 +45,3 @@ func TestLoadCorruptedOrOutOfRange(t *testing.T) {
 		t.Errorf("les champs valides doivent être conservés: %+v", got)
 	}
 }
-
-func TestImportLegacy(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "mes_valeurs.sav")
-	// format exact écrit par la version Perl (sans retour à la ligne final)
-	os.WriteFile(path, []byte("/home/fred/videos|Vacances|4|5|1|280|235|0|186,175,145|51,51,51|1"), 0o644)
-	p, err := ImportLegacy(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if p.VideoDir != "/home/fred/videos" || p.Name != "Vacances" || p.Cols != 4 || p.Rows != 5 ||
-		!p.Sort || p.Background != "#baaf91" || p.Foreground != "#333333" || !p.OpenBrowser {
-		t.Errorf("import incorrect: %+v", p)
-	}
-	// 280 est la largeur de miniature Perl : valide aussi comme largeur de capture
-	if p.FrameWidth != 280 {
-		t.Errorf("FrameWidth = %d", p.FrameWidth)
-	}
-
-	os.WriteFile(path, []byte("trop|court"), 0o644)
-	if _, err := ImportLegacy(path); err == nil {
-		t.Error("erreur attendue pour un fichier tronqué")
-	}
-}

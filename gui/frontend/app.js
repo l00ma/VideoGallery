@@ -12,7 +12,7 @@ const el = {
   backgroundHex: $("backgroundHex"), foregroundHex: $("foregroundHex"),
   console: $("console"), progress: $("progress"), status: $("status"),
   create: $("create"), cancel: $("cancel"), reset: $("reset"),
-  legacy: $("legacy"), quit: $("quit"), browse: $("browse"), version: $("version"),
+  swapColors: $("swapColors"), quit: $("quit"), browse: $("browse"), version: $("version"),
   checkUpdates: $("checkUpdates"), checkNow: $("checkNow"),
   updateBar: $("updateBar"), updateText: $("updateText"), updateProgress: $("updateProgress"),
   updateNow: $("updateNow"), updateNotes: $("updateNotes"), updateLater: $("updateLater"),
@@ -76,7 +76,6 @@ function refreshState() {
   const err = validate(readForm());
   el.create.disabled = running || err !== "" || toolsProblem !== "";
   el.reset.disabled = running;
-  el.legacy.disabled = running;
   el.browse.disabled = running;
   el.cancel.hidden = !running;
   el.updateNow.disabled = running;
@@ -187,16 +186,10 @@ async function resetForm() {
   showIntro();
 }
 
-async function importLegacy() {
-  try {
-    const p = await backend().ImportLegacyPrefs();
-    if (p) {
-      fillForm(p);
-      setStatus("Valeurs de l'ancienne version importées.");
-    }
-  } catch (e) {
-    log("Import impossible : " + e, "err");
-  }
+function swapColors() {
+  [el.background.value, el.foreground.value] = [el.foreground.value, el.background.value];
+  showColors();
+  refreshState();
 }
 
 // ---------- mises à jour ----------
@@ -283,7 +276,7 @@ async function init() {
   el.create.addEventListener("click", create);
   el.cancel.addEventListener("click", () => backend().Cancel());
   el.reset.addEventListener("click", resetForm);
-  el.legacy.addEventListener("click", importLegacy);
+  el.swapColors.addEventListener("click", swapColors);
   el.quit.addEventListener("click", () => backend().Quit());
   el.checkNow.addEventListener("click", () => checkUpdate(true));
   el.updateNow.addEventListener("click", applyUpdate);

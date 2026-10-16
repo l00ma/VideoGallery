@@ -120,6 +120,6 @@ Le moteur est volontairement léger : bibliothèque standard Go et une seule dé
 
 Projet né en 2013 en Perl + wxWidgets, réécrit en Go en 2026 (version 1.0.0 de ce dépôt). L'ancienne version Perl n'est plus dans ce dépôt.
 
-## Auteur
+## Licence
 
-© Shomolooma 2013-2026
+[MIT](LICENSE) © Shomolooma 2013-2026. Les bibliothèques tierces gardent leurs propres licences (voir `THIRD_PARTY_LICENSES.txt` dans chaque archive).

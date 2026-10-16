@@ -30,7 +30,10 @@ func run() int {
 	fs.StringVar(&opts.Foreground, "fg", "#333333", "couleur du texte (#rrggbb)")
 	fs.IntVar(&opts.FrameWidth, "frame-width", 320, "largeur d'une capture en pixels")
 	fs.IntVar(&opts.Jobs, "jobs", 0, "vidéos traitées en parallèle (défaut : nombre de CPU)")
-	fs.BoolVar(&opts.NoSort, "no-sort", false, "ne pas trier les vidéos par nom")
+	fs.StringVar(&opts.Order, "sort", gallery.OrderName, "ordre des vidéos : name, name-desc, date-desc (récentes d'abord), date,\n"+
+		"duration-desc (longues d'abord), duration, size-desc (lourdes d'abord), size, none\n"+
+		"(date = date de tournage si la vidéo l'indique, sinon date du fichier)")
+	noSort := fs.Bool("no-sort", false, "équivaut à -sort none (conservé pour compatibilité)")
 	fs.BoolVar(&opts.Force, "force", false, "régénérer les images même si elles sont à jour")
 	showVersion := fs.Bool("version", false, "affiche la version")
 	doUpdate := fs.Bool("update", false, "installe la dernière version publiée sur GitHub, puis quitte")
@@ -75,6 +78,9 @@ func run() int {
 		return 2
 	}
 	opts.VideoDir = dir
+	if *noSort {
+		opts.Order = gallery.OrderNone
+	}
 	defer announceUpdate(*noUpdateCheck)()
 
 	tools, err := gallery.FindTools()

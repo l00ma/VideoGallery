@@ -15,7 +15,7 @@ Aucun serveur, aucun JavaScript dans les pages : la galerie s'ouvre d'un double-
 
 Tu pointes le programme sur un dossier de vidéos (`mp4`, `webm`, `ogg`), il écrit dans un sous-dossier `pages/` :
 
-- un **index paginé** de miniatures, avec la grille de ton choix ; chaque miniature porte la durée de la vidéo, avec sa taille et sa résolution en dessous ;
+- un **index paginé** de miniatures, avec la grille de ton choix ; chaque miniature porte la durée de la vidéo, avec sa taille, sa résolution et sa date en dessous ;
 - une **page par vidéo** : lecteur HTML5, boutons précédent/suivant, retour à la galerie ;
 - une **planche de 9 captures** (3×3, prises à 10 %, 20 % … 90 % de la durée) par vidéo, avec en-tête (nom, taille, résolution, durée) et l'instant de chaque capture.
 
@@ -25,7 +25,7 @@ Le tout tient dans de simples fichiers HTML/CSS/JPEG : tu peux copier le dossier
 
 ### Détails qui comptent
 
-- **Cache** : une image n'est régénérée que si elle est absente ou plus ancienne que la vidéo, et les métadonnées lues par ffprobe (durée, résolution) sont gardées dans `img/meta.json`. Relancer sur le même dossier est quasi instantané (`-force` pour tout refaire).
+- **Cache** : une image n'est régénérée que si elle est absente ou plus ancienne que la vidéo, et les métadonnées lues par ffprobe (durée, résolution, date de tournage) sont gardées dans `img/meta.json`. Relancer sur le même dossier est quasi instantané (`-force` pour tout refaire).
 - **Tolérance aux pannes** : une vidéo illisible est ignorée et signalée, la galerie est générée avec les autres.
 - **Prudence sur le dossier de sortie** : la génération supprime les pages et images obsolètes, donc elle **refuse** d'écrire dans un dossier existant qui contient autre chose qu'une galerie.
 - **Rotation** : la résolution affichée tient compte des vidéos tournées à 90°/270°.
@@ -49,7 +49,7 @@ Les archives `VideoGallery-<version>-linux-amd64.tar.gz` et `…-windows-amd64.z
 
 ### Interface graphique
 
-Lance `VideoGallery`, puis suis les étapes : répertoire des vidéos, nom de la galerie, nombre de miniatures par ligne (2 à 5) et par colonne (2 à 6). Les couleurs (avec un bouton pour inverser fond et texte), la largeur des captures et l'ouverture automatique dans le navigateur sont dans « Options ». Les réglages sont mémorisés après chaque génération réussie (`~/.config/VideoGallery/prefs.json` sous Linux). La génération peut être annulée à tout moment.
+Lance `VideoGallery`, puis suis les étapes : répertoire des vidéos, nom de la galerie, nombre de miniatures par ligne (2 à 5) et par colonne (2 à 6). L'ordre des vidéos (nom, date, durée ou taille, dans les deux sens), les couleurs (avec un bouton pour inverser fond et texte), la largeur des captures et l'ouverture automatique dans le navigateur sont dans « Options ». Les réglages sont mémorisés après chaque génération réussie (`~/.config/VideoGallery/prefs.json` sous Linux). La génération peut être annulée à tout moment.
 
 Sous Linux, `./install.sh` ajoute « The Video Gallery » au menu des applications (sans `sudo`) ; `./install.sh --uninstall` le retire.
 
@@ -69,7 +69,8 @@ videogallery -cols 4 -rows 5 -name "Vacances" ~/Vidéos/vacances
 | `-bg`, `-fg` | `#baaf91`, `#333333` | couleurs de fond et de texte (`#rrggbb`) |
 | `-frame-width` | `320` | largeur en pixels d'une capture de la planche |
 | `-jobs` | nombre de CPU | vidéos traitées en parallèle |
-| `-no-sort` | | ne pas trier les vidéos par nom |
+| `-sort` | `name` | ordre des vidéos : `name`, `name-desc`, `date-desc` (récentes d'abord), `date`, `duration-desc` (longues d'abord), `duration`, `size-desc` (lourdes d'abord), `size`, `none` (ordre du système de fichiers). La date est celle du tournage si la vidéo l'indique, sinon celle du fichier |
+| `-no-sort` | | équivaut à `-sort none` (conservé pour compatibilité) |
 | `-force` | | régénérer les images même à jour |
 | `-update` | | installer la dernière version publiée |
 | `-no-update-check` | | ne pas chercher de nouvelle version |

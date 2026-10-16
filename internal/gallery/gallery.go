@@ -35,7 +35,7 @@ type Options struct {
 	OutDir     string // répertoire de sortie ; défaut : <VideoDir>/pages
 	Name       string // nom de la galerie ; défaut : nom du répertoire
 	Cols, Rows int    // miniatures par ligne / par colonne
-	NoSort     bool   // conserver l'ordre du système de fichiers
+	Order      string // ordre des vidéos (OrderName... ; défaut : OrderName)
 	Force      bool   // régénérer les images même si elles sont à jour
 	Background string // couleur de fond, #rrggbb
 	Foreground string // couleur du texte, #rrggbb
@@ -98,6 +98,12 @@ func (o *Options) applyDefaults() error {
 	if o.Cols <= 0 || o.Rows <= 0 {
 		return errors.New("le nombre de miniatures par ligne et par colonne doit être positif")
 	}
+	if o.Order == "" {
+		o.Order = OrderName
+	}
+	if err := validOrder(o.Order); err != nil {
+		return err
+	}
 	if o.FrameWidth < 80 || o.FrameWidth > 1920 {
 		return errors.New("la largeur des captures doit être comprise entre 80 et 1920 pixels")
 	}
@@ -142,7 +148,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		rawProgress(done, total)
 	}
 
-	videos, err := Scan(opts.VideoDir, !opts.NoSort)
+	videos, err := Scan(opts.VideoDir, opts.Order != OrderNone)
 	if err != nil {
 		return nil, err
 	}
@@ -180,6 +186,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		}
 	}
 
+	sortItems(items, opts.Order)
 	pruneImages(imgDir, items)
 	if err := metas.save(imgDir, items); err != nil {
 		opts.Log("Cache des métadonnées non enregistré : %v", err) // simple ralentissement au prochain passage

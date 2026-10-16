@@ -195,9 +195,14 @@ func TestRunEndToEnd(t *testing.T) {
 		t.Skip("ffmpeg indisponible")
 	}
 	dir := t.TempDir()
+	// dates de tournage : « trois » est la plus ancienne, « un » n'en a pas
+	created := map[string]string{"d'eux #2.mp4": "2021-05-01T10:00:00Z", "trois.mp4": "2019-05-01T10:00:00Z"}
 	for _, n := range []string{"un.mp4", "d'eux #2.mp4", "trois.mp4"} {
-		cmd := exec.Command(tools.FFmpeg, "-v", "error", "-f", "lavfi",
-			"-i", "testsrc2=size=160x90:rate=10:duration=4", filepath.Join(dir, n))
+		args := []string{"-v", "error", "-f", "lavfi", "-i", "testsrc2=size=160x90:rate=10:duration=4"}
+		if c := created[n]; c != "" {
+			args = append(args, "-metadata", "creation_time="+c)
+		}
+		cmd := exec.Command(tools.FFmpeg, append(args, filepath.Join(dir, n))...)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("génération de %s: %v: %s", n, err, out)
 		}
@@ -253,6 +258,23 @@ func TestRunEndToEnd(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "pages", "img", metaFile)); err != nil {
 		t.Errorf("meta.json non recréé: %v", err)
+	}
+
+	// tri par date : la date de tournage prime, « un » (fichier du jour) est la plus récente
+	dateOpts := opts
+	dateOpts.Order = OrderDate
+	if _, err := Run(context.Background(), dateOpts); err != nil {
+		t.Fatal(err)
+	}
+	for n, want := range []string{"trois.mp4", "d%27eux%20%232.mp4", "un.mp4"} {
+		page, _ := os.ReadFile(filepath.Join(dir, "pages", videoFile(n+1)))
+		if !strings.Contains(string(page), `src="../`+want+`"`) {
+			t.Errorf("tri par date : vidéo %d devrait être %s", n+1, want)
+		}
+	}
+	index, _ = os.ReadFile(filepath.Join(dir, "pages", "index.html"))
+	if !strings.Contains(string(index), "01/05/2019") {
+		t.Errorf("date de tournage absente de l'index:\n%s", index)
 	}
 
 	// changement de largeur : les anciennes images sont purgées

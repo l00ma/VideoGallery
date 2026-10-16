@@ -122,7 +122,7 @@ func (a *App) Generate(p prefs.Prefs) error {
 		Cols:       p.Cols,
 		Rows:       p.Rows,
 		FrameWidth: p.FrameWidth,
-		NoSort:     !p.Sort,
+		Order:      p.Order,
 		Background: p.Background,
 		Foreground: p.Foreground,
 		Tools:      tools,

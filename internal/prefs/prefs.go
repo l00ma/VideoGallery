@@ -7,7 +7,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
+
+	"videogallery/internal/gallery"
 )
 
 // Prefs reprend les champs de l'ancienne fenêtre Perl.
@@ -17,7 +20,7 @@ type Prefs struct {
 	Cols        int    `json:"cols"`
 	Rows        int    `json:"rows"`
 	FrameWidth  int    `json:"frameWidth"`
-	Sort        bool   `json:"sort"`
+	Order       string `json:"order"`      // gallery.OrderName...
 	Background  string `json:"background"` // #rrggbb
 	Foreground  string `json:"foreground"` // #rrggbb
 	OpenBrowser bool   `json:"openBrowser"`
@@ -32,7 +35,7 @@ func Defaults() Prefs {
 		Cols:         4,
 		Rows:         5,
 		FrameWidth:   320,
-		Sort:         true,
+		Order:        gallery.OrderName,
 		CheckUpdates: true,
 		Background:   "#baaf91",
 		Foreground:   "#333333",
@@ -60,6 +63,14 @@ func Load(path string) Prefs {
 	if err := json.Unmarshal(data, &p); err != nil {
 		return Defaults()
 	}
+	// Avant la 1.1.0, une simple case « tri alphabétique » ("sort": bool).
+	var legacy struct {
+		Order *string `json:"order"`
+		Sort  *bool   `json:"sort"`
+	}
+	if json.Unmarshal(data, &legacy) == nil && legacy.Order == nil && legacy.Sort != nil && !*legacy.Sort {
+		p.Order = gallery.OrderNone
+	}
 	return p.sanitized()
 }
 
@@ -74,6 +85,9 @@ func (p Prefs) sanitized() Prefs {
 	}
 	if p.FrameWidth < 80 || p.FrameWidth > 1920 {
 		p.FrameWidth = d.FrameWidth
+	}
+	if !slices.Contains(gallery.Orders, p.Order) {
+		p.Order = d.Order
 	}
 	if !validColor(p.Background) {
 		p.Background = d.Background

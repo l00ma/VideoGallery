@@ -40,7 +40,22 @@
 
   <fieldset class="card">
     <legend>Options</legend>
-    <label class="check"><input id="sort" type="checkbox"> Tri alphabétique des vidéos</label>
+    <div class="inline">
+      <label>Ordre des vidéos
+        <select id="order">
+          <option value="name">Nom (A → Z)</option>
+          <option value="name-desc">Nom (Z → A)</option>
+          <option value="date-desc">Date (plus récentes d'abord)</option>
+          <option value="date">Date (plus anciennes d'abord)</option>
+          <option value="duration-desc">Durée (plus longues d'abord)</option>
+          <option value="duration">Durée (plus courtes d'abord)</option>
+          <option value="size-desc">Taille (plus lourdes d'abord)</option>
+          <option value="size">Taille (plus légères d'abord)</option>
+          <option value="none">Ordre du système de fichiers</option>
+        </select>
+      </label>
+      <span class="hint">Date : date de tournage enregistrée dans la vidéo, sinon date du fichier.</span>
+    </div>
     <div class="inline">
       <label>Largeur des captures
         <input id="frameWidth" type="number" min="80" max="1920" step="10"> pixels

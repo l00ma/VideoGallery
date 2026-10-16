@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	texttemplate "text/template"
+	"time"
 )
 
 //go:embed templates/*.gohtml
@@ -54,7 +55,7 @@ type cardView struct {
 	Number         int
 	Name           string
 	Duration       string // « 12:34 », incrusté sur la miniature
-	Details        string // « 245,3 Mo · 1920 × 1080 »
+	Details        string // « 245,3 Mo · 1920 × 1080 · 24/08/2024 » (date de tournage)
 	Href           string
 	Thumb          htmltemplate.URL
 	ThumbW, ThumbH int
@@ -125,8 +126,9 @@ func render(opts Options, items []item) (int, error) {
 			v.Cards = append(v.Cards, cardView{
 				Number: i + 1, Name: it.Name, Href: videoFile(i + 1),
 				Duration: formatClock(it.Duration),
-				Details:  formatSize(it.Size) + " · " + fmt.Sprintf("%d × %d", it.Width, it.Height),
-				Thumb:    urlPath(it.Thumb), ThumbW: it.ThumbW, ThumbH: it.ThumbH,
+				Details: fmt.Sprintf("%s · %d × %d · %s", formatSize(it.Size), it.Width, it.Height,
+					time.Unix(it.shotTime(), 0).Format("02/01/2006")),
+				Thumb: urlPath(it.Thumb), ThumbW: it.ThumbW, ThumbH: it.ThumbH,
 			})
 		}
 		if p > 1 {

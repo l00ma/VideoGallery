@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Tools regroupe les chemins des exécutables ffmpeg et ffprobe.
@@ -67,6 +68,9 @@ type Meta struct {
 	Duration float64 `json:"duration"` // secondes
 	Width    int     `json:"width"`    // résolution telle qu'affichée (rotation appliquée)
 	Height   int     `json:"height"`
+	// Created : date de tournage (creation_time du conteneur), en secondes
+	// Unix ; 0 si absente ou invraisemblable.
+	Created int64 `json:"created,omitempty"`
 }
 
 type probeOutput struct {
@@ -79,7 +83,8 @@ type probeOutput struct {
 		} `json:"side_data_list"`
 	} `json:"streams"`
 	Format struct {
-		Duration string `json:"duration"`
+		Duration string            `json:"duration"`
+		Tags     map[string]string `json:"tags"`
 	} `json:"format"`
 }
 
@@ -90,7 +95,7 @@ func (t Tools) Probe(ctx context.Context, path string) (Meta, error) {
 	cmd := exec.CommandContext(ctx, t.FFprobe,
 		"-v", "error",
 		"-select_streams", "v:0",
-		"-show_entries", "stream=width,height:stream_tags=rotate:stream_side_data=rotation:format=duration",
+		"-show_entries", "stream=width,height:stream_tags=rotate:stream_side_data=rotation:format=duration:format_tags=creation_time",
 		"-of", "json",
 		path)
 	var stderr bytes.Buffer
@@ -108,7 +113,7 @@ func (t Tools) Probe(ctx context.Context, path string) (Meta, error) {
 	if err != nil || math.IsNaN(d) || math.IsInf(d, 0) || d <= 0 {
 		return Meta{}, errors.New("durée de la vidéo introuvable")
 	}
-	m := Meta{Duration: d}
+	m := Meta{Duration: d, Created: parseCreated(po.Format.Tags["creation_time"])}
 	if len(po.Streams) == 0 {
 		return Meta{}, errors.New("aucun flux vidéo")
 	}
@@ -156,4 +161,14 @@ func (t Tools) Frame(ctx context.Context, path string, at float64, width int) (i
 		return nil, fmt.Errorf("décodage de l'image extraite: %w", err)
 	}
 	return img, nil
+}
+
+// parseCreated lit le creation_time de ffprobe (« 2024-08-24T12:34:56.000000Z »).
+// Certains appareils écrivent une date nulle (1904, 1970) : elle est ignorée.
+func parseCreated(s string) int64 {
+	t, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(s))
+	if err != nil || t.Year() < 1990 {
+		return 0
+	}
+	return t.Unix()
 }

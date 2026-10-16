@@ -7,7 +7,7 @@ const rt = () => window.runtime;
 const $ = (id) => document.getElementById(id);
 const el = {
   videoDir: $("videoDir"), name: $("name"), cols: $("cols"), rows: $("rows"),
-  frameWidth: $("frameWidth"), sort: $("sort"), openBrowser: $("openBrowser"),
+  frameWidth: $("frameWidth"), order: $("order"), openBrowser: $("openBrowser"),
   background: $("background"), foreground: $("foreground"),
   backgroundHex: $("backgroundHex"), foregroundHex: $("foregroundHex"),
   console: $("console"), progress: $("progress"), status: $("status"),
@@ -31,7 +31,7 @@ function fillForm(p) {
   el.cols.value = p.cols;
   el.rows.value = p.rows;
   el.frameWidth.value = p.frameWidth;
-  el.sort.checked = !!p.sort;
+  el.order.value = p.order || "name";
   el.openBrowser.checked = !!p.openBrowser;
   el.checkUpdates.checked = !!p.checkUpdates;
   el.background.value = p.background;
@@ -47,7 +47,7 @@ function readForm() {
     cols: parseInt(el.cols.value, 10),
     rows: parseInt(el.rows.value, 10),
     frameWidth: parseInt(el.frameWidth.value, 10),
-    sort: el.sort.checked,
+    order: el.order.value,
     background: el.background.value,
     foreground: el.foreground.value,
     openBrowser: el.openBrowser.checked,
@@ -288,7 +288,7 @@ async function init() {
     log("⚠ " + toolsProblem, "err");
   }
 
-  for (const id of ["videoDir", "name", "cols", "rows", "frameWidth", "sort", "openBrowser", "checkUpdates", "background", "foreground"]) {
+  for (const id of ["videoDir", "name", "cols", "rows", "frameWidth", "order", "openBrowser", "checkUpdates", "background", "foreground"]) {
     el[id].addEventListener("input", () => { showColors(); refreshState(); });
   }
   el.browse.addEventListener("click", browse);

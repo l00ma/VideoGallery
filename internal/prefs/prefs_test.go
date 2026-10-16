@@ -45,3 +45,24 @@ func TestLoadCorruptedOrOutOfRange(t *testing.T) {
 		t.Errorf("les champs valides doivent être conservés: %+v", got)
 	}
 }
+
+// Avant la 1.1.0, le tri était une case à cocher ("sort": bool).
+func TestLoadLegacySort(t *testing.T) {
+	dir := t.TempDir()
+	cases := []struct{ json, want string }{
+		{`{"sort": false}`, "none"},
+		{`{"sort": true}`, "name"},
+		{`{"sort": false, "order": "size"}`, "size"}, // le nouveau champ prime
+		{`{"order": "n'importe quoi"}`, "name"},
+		{`{"order": "date-desc"}`, "date-desc"},
+	}
+	for i, c := range cases {
+		path := filepath.Join(dir, "p.json")
+		if err := os.WriteFile(path, []byte(c.json), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := Load(path).Order; got != c.want {
+			t.Errorf("cas %d %s : Order = %q, attendu %q", i, c.json, got, c.want)
+		}
+	}
+}

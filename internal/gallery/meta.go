@@ -12,6 +12,15 @@ import (
 // dont les images sont en cache, et un ffprobe coûte ~100 ms par vidéo.
 const metaFile = "meta.json"
 
+// metaVersion change quand Meta s'enrichit : un cache d'une autre version est
+// ignoré (ffprobe est relancé, les images, elles, restent en cache).
+const metaVersion = 2
+
+type metaJSON struct {
+	Version int                  `json:"version"`
+	Videos  map[string]metaEntry `json:"videos"`
+}
+
 type metaEntry struct {
 	Size    int64 `json:"size"`
 	ModTime int64 `json:"mtime"` // nanosecondes Unix
@@ -26,8 +35,10 @@ type metaCache struct {
 
 func loadMetaCache(imgDir string) *metaCache {
 	c := &metaCache{entries: map[string]metaEntry{}}
-	if data, err := os.ReadFile(filepath.Join(imgDir, metaFile)); err == nil {
-		_ = json.Unmarshal(data, &c.entries) // cache illisible : on repart de zéro
+	var f metaJSON
+	if data, err := os.ReadFile(filepath.Join(imgDir, metaFile)); err == nil &&
+		json.Unmarshal(data, &f) == nil && f.Version == metaVersion && f.Videos != nil {
+		c.entries = f.Videos // sinon (absent, illisible, ancien) : on repart de zéro
 	}
 	return c
 }
@@ -61,7 +72,7 @@ func (c *metaCache) save(imgDir string, items []item) error {
 		}
 	}
 	c.mu.Unlock()
-	data, err := json.MarshalIndent(keep, "", " ")
+	data, err := json.MarshalIndent(metaJSON{Version: metaVersion, Videos: keep}, "", " ")
 	if err != nil {
 		return err
 	}

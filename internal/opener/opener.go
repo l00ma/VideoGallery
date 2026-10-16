@@ -1,14 +1,16 @@
-package main
+// Package opener ouvre un fichier avec l'application par défaut du système
+// (la galerie générée, dans le navigateur). Utilisé par le CLI et la GUI.
+package opener
 
 import (
 	"os/exec"
 	goruntime "runtime"
 )
 
-// openFile ouvre un fichier avec l'application par défaut du système. Les
+// Open ouvre un fichier avec l'application par défaut du système. Les
 // arguments sont passés en liste, jamais par un shell : un chemin contenant
 // des guillemets ou des « $ » ne peut rien exécuter.
-func openFile(path string) error {
+func Open(path string) error {
 	var cmd *exec.Cmd
 	switch goruntime.GOOS {
 	case "windows":

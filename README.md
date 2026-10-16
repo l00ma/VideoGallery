@@ -60,6 +60,8 @@ Sous Linux, `./install.sh` ajoute « The Video Gallery » au menu des applicatio
 videogallery [options] <répertoire des vidéos>
 
 videogallery -cols 4 -rows 5 -name "Vacances" ~/Vidéos/vacances
+videogallery -sort date-desc -open ~/Vidéos/vacances
+videogallery -h        # aide complète, avec exemples et codes de retour
 ```
 
 | Option | Défaut | Rôle |
@@ -72,6 +74,7 @@ videogallery -cols 4 -rows 5 -name "Vacances" ~/Vidéos/vacances
 | `-jobs` | nombre de CPU | vidéos traitées en parallèle |
 | `-sort` | `name` | ordre des vidéos : `name`, `name-desc`, `date-desc` (récentes d'abord), `date`, `duration-desc` (longues d'abord), `duration`, `size-desc` (lourdes d'abord), `size`, `none` (ordre du système de fichiers). La date est celle du tournage si la vidéo l'indique, sinon celle du fichier |
 | `-no-sort` | | équivaut à `-sort none` (conservé pour compatibilité) |
+| `-open` | | ouvrir la galerie dans le navigateur à la fin |
 | `-force` | | régénérer les images même à jour |
 | `-update` | | installer la dernière version publiée |
 | `-no-update-check` | | ne pas chercher de nouvelle version |

@@ -12,6 +12,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"videogallery/internal/gallery"
+	"videogallery/internal/opener"
 	"videogallery/internal/prefs"
 	"videogallery/internal/update"
 )
@@ -183,7 +184,7 @@ func (a *App) OpenInBrowser(indexPath string) error {
 	if _, err := os.Stat(indexPath); err != nil {
 		return err
 	}
-	return openFile(indexPath)
+	return opener.Open(indexPath)
 }
 
 // Quit ferme l'application.

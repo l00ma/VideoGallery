@@ -7,41 +7,91 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"videogallery/internal/gallery"
+	"videogallery/internal/opener"
 	"videogallery/internal/prefs"
 	"videogallery/internal/update"
 )
 
 func main() { os.Exit(run()) }
 
-func run() int {
-	var opts gallery.Options
+// cli regroupe les valeurs des options de la ligne de commande.
+type cli struct {
+	opts          gallery.Options
+	noSort        bool
+	open          bool
+	showVersion   bool
+	doUpdate      bool
+	noUpdateCheck bool
+}
+
+// newFlagSet déclare les options. Les textes courts servent aux messages
+// d'erreur ; l'aide complète (-h) est dans help.go.
+func newFlagSet(c *cli) *flag.FlagSet {
 	fs := flag.NewFlagSet("videogallery", flag.ContinueOnError)
-	fs.StringVar(&opts.Name, "name", "", "nom de la galerie (défaut : nom du répertoire)")
-	fs.StringVar(&opts.OutDir, "out", "", "répertoire de sortie (défaut : <répertoire>/pages)")
-	fs.IntVar(&opts.Cols, "cols", 4, "miniatures par ligne")
-	fs.IntVar(&opts.Rows, "rows", 5, "miniatures par colonne")
-	fs.StringVar(&opts.Background, "bg", "#baaf91", "couleur de fond (#rrggbb)")
-	fs.StringVar(&opts.Foreground, "fg", "#333333", "couleur du texte (#rrggbb)")
-	fs.IntVar(&opts.FrameWidth, "frame-width", 320, "largeur d'une capture en pixels")
-	fs.IntVar(&opts.Jobs, "jobs", 0, "vidéos traitées en parallèle (défaut : nombre de CPU)")
-	fs.StringVar(&opts.Order, "sort", gallery.OrderName, "ordre des vidéos : name, name-desc, date-desc (récentes d'abord), date,\n"+
-		"duration-desc (longues d'abord), duration, size-desc (lourdes d'abord), size, none\n"+
-		"(date = date de tournage si la vidéo l'indique, sinon date du fichier)")
-	noSort := fs.Bool("no-sort", false, "équivaut à -sort none (conservé pour compatibilité)")
-	fs.BoolVar(&opts.Force, "force", false, "régénérer les images même si elles sont à jour")
-	showVersion := fs.Bool("version", false, "affiche la version")
-	doUpdate := fs.Bool("update", false, "installe la dernière version publiée sur GitHub, puis quitte")
-	noUpdateCheck := fs.Bool("no-update-check", false, "ne pas chercher de nouvelle version (vérification : au plus une fois par jour)")
-	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage : %s [options] <répertoire des vidéos> [options]\n\nOptions :\n", filepath.Base(os.Args[0]))
-		fs.PrintDefaults()
+	fs.StringVar(&c.opts.Name, "name", "", "titre de la galerie")
+	fs.StringVar(&c.opts.OutDir, "out", "", "dossier de sortie")
+	fs.IntVar(&c.opts.Cols, "cols", 4, "miniatures par ligne")
+	fs.IntVar(&c.opts.Rows, "rows", 5, "lignes de miniatures par page")
+	fs.StringVar(&c.opts.Background, "bg", "#baaf91", "couleur de fond (#rrggbb)")
+	fs.StringVar(&c.opts.Foreground, "fg", "#333333", "couleur du texte (#rrggbb)")
+	fs.IntVar(&c.opts.FrameWidth, "frame-width", 320, "largeur d'une capture en pixels")
+	fs.IntVar(&c.opts.Jobs, "jobs", 0, "vidéos traitées en parallèle (0 : nombre de processeurs)")
+	fs.StringVar(&c.opts.Order, "sort", gallery.OrderName, "ordre des vidéos")
+	fs.BoolVar(&c.noSort, "no-sort", false, "équivaut à -sort none")
+	fs.BoolVar(&c.open, "open", false, "ouvrir la galerie dans le navigateur à la fin")
+	fs.BoolVar(&c.opts.Force, "force", false, "régénérer toutes les images")
+	fs.BoolVar(&c.showVersion, "version", false, "afficher la version")
+	fs.BoolVar(&c.doUpdate, "update", false, "installer la dernière version, puis quitter")
+	fs.BoolVar(&c.noUpdateCheck, "no-update-check", false, "ne pas chercher de nouvelle version")
+	// Les messages de flag (en anglais) sont tus : run affiche l'erreur en
+	// français suivie d'un rappel court, et l'aide complète sur -h.
+	fs.SetOutput(io.Discard)
+	fs.Usage = func() {}
+	return fs
+}
+
+// usageHint rappelle la syntaxe après une erreur d'utilisation.
+func usageHint() {
+	fmt.Fprintf(os.Stderr, "Usage : %s [options] <dossier des vidéos>\n"+
+		"Aide complète : %[1]s -h\n", filepath.Base(os.Args[0]))
+}
+
+// flagError traduit les erreurs du paquet flag (seules les formes connues ;
+// une autre reste en anglais plutôt que d'être mal traduite).
+func flagError(err error) string {
+	msg := err.Error()
+	switch {
+	case strings.HasPrefix(msg, "flag provided but not defined: "):
+		return "option inconnue : " + strings.TrimPrefix(msg, "flag provided but not defined: ")
+	case strings.HasPrefix(msg, "flag needs an argument: "):
+		return "cette option attend une valeur : " + strings.TrimPrefix(msg, "flag needs an argument: ")
+	case strings.HasPrefix(msg, "invalid boolean value "):
+		// invalid boolean value "x" for -open: parse error
+		msg = strings.TrimPrefix(msg, "invalid boolean value ")
+		msg = strings.Replace(msg, " for -", " pour l'option -", 1)
+		return "valeur invalide " + strings.Replace(msg, ": parse error", " : une option comme -open s'écrit seule (ou -open=false)", 1)
+	case strings.HasPrefix(msg, "invalid value "):
+		// invalid value "x" for flag -cols: parse error
+		msg = strings.TrimPrefix(msg, "invalid value ")
+		msg = strings.Replace(msg, " for flag -", " pour l'option -", 1)
+		msg = strings.Replace(msg, ": value out of range", " : nombre trop grand", 1)
+		return "valeur invalide " + strings.Replace(msg, ": parse error", " : nombre entier attendu", 1)
 	}
+	return msg
+}
+
+func run() int {
+	var c cli
+	fs := newFlagSet(&c)
+	opts := &c.opts
 
 	// Accepte le répertoire avant ou après les options.
 	var dir string
@@ -49,39 +99,44 @@ func run() int {
 	for {
 		if err := fs.Parse(args); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
+				fmt.Print(helpText(fs, filepath.Base(os.Args[0])))
 				return 0
 			}
+			fmt.Fprintln(os.Stderr, "erreur:", flagError(err))
+			usageHint()
 			return 2
 		}
 		if fs.NArg() == 0 {
 			break
 		}
 		if dir != "" {
-			fmt.Fprintln(os.Stderr, "un seul répertoire est attendu")
+			fmt.Fprintln(os.Stderr, "erreur: un seul dossier de vidéos est attendu")
+			usageHint()
 			return 2
 		}
 		dir, args = fs.Arg(0), fs.Args()[1:]
 	}
 
-	if *showVersion {
+	if c.showVersion {
 		fmt.Println("The Video Gallery", gallery.Version)
 		return 0
 	}
 	if self, err := update.SelfPath(); err == nil {
 		update.CleanOld(filepath.Dir(self))
 	}
-	if *doUpdate {
+	if c.doUpdate {
 		return selfUpdate()
 	}
 	if dir == "" {
-		fs.Usage()
+		fmt.Fprintln(os.Stderr, "erreur: dossier des vidéos non précisé")
+		usageHint()
 		return 2
 	}
 	opts.VideoDir = dir
-	if *noSort {
+	if c.noSort {
 		opts.Order = gallery.OrderNone
 	}
-	defer announceUpdate(*noUpdateCheck)()
+	defer announceUpdate(c.noUpdateCheck)()
 
 	tools, err := gallery.FindTools()
 	if err != nil {
@@ -95,7 +150,7 @@ func run() int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	res, err := gallery.Run(ctx, opts)
+	res, err := gallery.Run(ctx, *opts)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "erreur:", err)
 		return 1
@@ -109,7 +164,14 @@ func run() int {
 			fmt.Printf("  %s : %v\n", f.Video, f.Err)
 		}
 	}
-	fmt.Println("Galerie :", filepath.Join(res.OutDir, "index.html"))
+	index := filepath.Join(res.OutDir, "index.html")
+	fmt.Println("Galerie :", index)
+	if c.open {
+		if err := opener.Open(index); err != nil {
+			// la galerie est faite : on le signale sans changer le code retour
+			fmt.Fprintln(os.Stderr, "ouverture dans le navigateur impossible :", err)
+		}
+	}
 	if len(res.Failed) > 0 {
 		return 3
 	}

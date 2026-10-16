@@ -191,6 +191,7 @@ func managed(goos string) map[string]os.FileMode {
 	return map[string]os.FileMode{
 		"VideoGallery" + ext:       0o755,
 		"videogallery" + ext:       0o755,
+		"LICENSE":                  0o644,
 		"LISEZMOI.txt":             0o644,
 		"THIRD_PARTY_LICENSES.txt": 0o644,
 		"install.sh":               0o755,

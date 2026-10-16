@@ -202,7 +202,8 @@ MISES À JOUR
 Réglages de l'interface : ~/.config/VideoGallery/prefs.json
 
 LICENCES
-  Voir THIRD_PARTY_LICENSES.txt.
+  Ce programme : licence MIT (fichier LICENSE).
+  Bibliothèques tierces : voir THIRD_PARTY_LICENSES.txt.
 EOF
 	else
 		cat >"$2" <<EOF
@@ -243,7 +244,8 @@ NOTE
   « Exécuter quand même »).
 
 LICENCES
-  Voir THIRD_PARTY_LICENSES.txt.
+  Ce programme : licence MIT (fichier LICENSE).
+  Bibliothèques tierces : voir THIRD_PARTY_LICENSES.txt.
 EOF
 	fi
 }
@@ -254,6 +256,7 @@ package_platform() { # $1 = linux | windows
 	local os="$1" name="VideoGallery-$VERSION-$1-amd64" stage="$DIST/stage-$1"
 	step "Archive $os"
 	write_readme "$os" "$stage/LISEZMOI.txt"
+	cp LICENSE "$stage/LICENSE"
 	if [ "$os" = linux ]; then
 		# entrée de menu (le .desktop est complété par install.sh avec le chemin réel)
 		cp packaging/linux/install.sh packaging/linux/videogallery.desktop.in "$stage/"

@@ -64,8 +64,9 @@ func lastLine(s string) string {
 
 // Meta regroupe les métadonnées d'une vidéo utiles à la planche.
 type Meta struct {
-	Duration      float64 // secondes
-	Width, Height int     // résolution telle qu'affichée (rotation appliquée)
+	Duration float64 `json:"duration"` // secondes
+	Width    int     `json:"width"`    // résolution telle qu'affichée (rotation appliquée)
+	Height   int     `json:"height"`
 }
 
 type probeOutput struct {

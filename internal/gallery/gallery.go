@@ -67,6 +67,7 @@ type Result struct {
 // item est une vidéo prête à être affichée.
 type item struct {
 	Video
+	Meta                  // durée et résolution (ffprobe ou cache meta.json)
 	Sheet, Thumb   string // noms de fichiers relatifs à OutDir, ex. img/320-a.mp4-sheet.jpg
 	SheetW, SheetH int
 	ThumbW, ThumbH int
@@ -161,7 +162,8 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		return nil, err
 	}
 
-	items, failures := buildImages(ctx, opts, videos, imgDir)
+	metas := loadMetaCache(imgDir)
+	items, failures := buildImages(ctx, opts, videos, imgDir, metas)
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -179,6 +181,9 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	pruneImages(imgDir, items)
+	if err := metas.save(imgDir, items); err != nil {
+		opts.Log("Cache des métadonnées non enregistré : %v", err) // simple ralentissement au prochain passage
+	}
 
 	pages, err := render(opts, items)
 	if err != nil {
@@ -230,7 +235,7 @@ func checkOutDir(dir string) error {
 
 // buildImages produit planche et miniature de chaque vidéo, en parallèle.
 // Les vidéos en échec sont écartées de la galerie et rapportées à part.
-func buildImages(ctx context.Context, opts Options, videos []Video, imgDir string) ([]item, []Failure) {
+func buildImages(ctx context.Context, opts Options, videos []Video, imgDir string, metas *metaCache) ([]item, []Failure) {
 	results := make([]*item, len(videos))
 	errs := make([]error, len(videos))
 
@@ -247,7 +252,7 @@ func buildImages(ctx context.Context, opts Options, videos []Video, imgDir strin
 			defer wg.Done()
 			defer func() { <-sem }()
 			defer func() { opts.Progress(int(done.Add(1)), len(videos)) }()
-			it, err := buildItem(ctx, opts, v, imgDir)
+			it, err := buildItem(ctx, opts, v, imgDir, metas)
 			if err != nil {
 				errs[i] = err
 				if ctx.Err() == nil {
@@ -316,11 +321,21 @@ func imageNames(opts Options, v Video) (sheet, thumb string) {
 		shorten(fmt.Sprintf("t%d-", thumbWidth(opts.Cols)), v.Name, ".thumb.jpg")
 }
 
-func buildItem(ctx context.Context, opts Options, v Video, imgDir string) (*item, error) {
+func buildItem(ctx context.Context, opts Options, v Video, imgDir string, metas *metaCache) (*item, error) {
 	sheetName, thumbName := imageNames(opts, v)
 	sheetPath := filepath.Join(imgDir, sheetName)
 	thumbPath := filepath.Join(imgDir, thumbName)
 	it := &item{Video: v, Sheet: "img/" + sheetName, Thumb: "img/" + thumbName}
+
+	meta, known := metas.get(v)
+	if !known || opts.Force {
+		var err error
+		if meta, err = opts.Tools.Probe(ctx, v.Path); err != nil {
+			return nil, err
+		}
+		metas.put(v, meta)
+	}
+	it.Meta = meta
 
 	if !opts.Force && upToDate(v, sheetPath) && upToDate(v, thumbPath) {
 		var err1, err2 error
@@ -334,10 +349,7 @@ func buildItem(ctx context.Context, opts Options, v Video, imgDir string) (*item
 	}
 
 	opts.Log("Génération de la planche de %s", v.Name)
-	meta, err := opts.Tools.Probe(ctx, v.Path)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 	times := FrameTimes(meta.Duration)
 	frames := make([]image.Image, sheetFrames)
 	for i, t := range times {

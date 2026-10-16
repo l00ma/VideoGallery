@@ -53,6 +53,8 @@ func plural(n int, one, many string) string {
 type cardView struct {
 	Number         int
 	Name           string
+	Duration       string // « 12:34 », incrusté sur la miniature
+	Details        string // « 245,3 Mo · 1920 × 1080 »
 	Href           string
 	Thumb          htmltemplate.URL
 	ThumbW, ThumbH int
@@ -122,7 +124,9 @@ func render(opts Options, items []item) (int, error) {
 			it := items[i]
 			v.Cards = append(v.Cards, cardView{
 				Number: i + 1, Name: it.Name, Href: videoFile(i + 1),
-				Thumb: urlPath(it.Thumb), ThumbW: it.ThumbW, ThumbH: it.ThumbH,
+				Duration: formatClock(it.Duration),
+				Details:  formatSize(it.Size) + " · " + fmt.Sprintf("%d × %d", it.Width, it.Height),
+				Thumb:    urlPath(it.Thumb), ThumbW: it.ThumbW, ThumbH: it.ThumbH,
 			})
 		}
 		if p > 1 {

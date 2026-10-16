@@ -225,13 +225,34 @@ func TestRunEndToEnd(t *testing.T) {
 		t.Errorf("source vidéo mal encodée:\n%s", page)
 	}
 
-	// 2e passage : tout vient du cache
-	res, err = Run(context.Background(), opts)
+	index, _ := os.ReadFile(filepath.Join(dir, "pages", "index.html"))
+	for _, want := range []string{`<span class="duration">0:04</span>`, `160 × 90`} {
+		if !strings.Contains(string(index), want) {
+			t.Errorf("index sans %q:\n%s", want, index)
+		}
+	}
+
+	// 2e passage : tout vient du cache, métadonnées comprises (un ffprobe
+	// introuvable ferait échouer toute vidéo qu'on tenterait d'analyser)
+	cachedOpts := opts
+	cachedOpts.Tools.FFprobe = filepath.Join(dir, "ffprobe-absent")
+	res, err = Run(context.Background(), cachedOpts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Cached != 3 || res.Generated != 0 {
+	if res.Cached != 3 || res.Generated != 0 || len(res.Failed) != 1 {
 		t.Errorf("cache non utilisé: %+v", res)
+	}
+
+	// galerie antérieure au cache de métadonnées : seul ffprobe est relancé
+	if err := os.Remove(filepath.Join(dir, "pages", "img", metaFile)); err != nil {
+		t.Fatal(err)
+	}
+	if res, err = Run(context.Background(), opts); err != nil || res.Cached != 3 {
+		t.Fatalf("images en cache non réutilisées sans meta.json: %+v, %v", res, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "pages", "img", metaFile)); err != nil {
+		t.Errorf("meta.json non recréé: %v", err)
 	}
 
 	// changement de largeur : les anciennes images sont purgées

@@ -88,6 +88,24 @@ figcaption { margin-bottom: 0.3rem; }
 /* La miniature remplit sa colonne : sa taille suit le nombre de colonnes
    choisi. width/height dans le HTML réservent la place avant le chargement. */
 figure img { display: block; width: 100%; height: auto; }
+/* Durée incrustée en bas à droite de la miniature (lisible quelles que
+   soient les couleurs choisies, d'où le fond sombre fixe). */
+.thumb { position: relative; display: block; }
+.duration {
+  position: absolute;
+  right: 0.4rem;
+  bottom: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.3rem;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 0.8em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+a.thumb:hover { font-weight: normal; }
+.details { margin: 0.25rem 0 0; font-size: 0.75em; opacity: 0.8; }
 
 /* Le ratio est fixé dès le départ : sans cela, Chromium/Brave dimensionne le
    lecteur d'après le poster (miniature) tant que les métadonnées ne sont pas

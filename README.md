@@ -15,7 +15,7 @@ Aucun serveur, aucun JavaScript dans les pages : la galerie s'ouvre d'un double-
 
 Tu pointes le programme sur un dossier de vidéos (`mp4`, `webm`, `ogg`), il écrit dans un sous-dossier `pages/` :
 
-- un **index paginé** de miniatures, avec la grille de ton choix ;
+- un **index paginé** de miniatures, avec la grille de ton choix ; chaque miniature porte la durée de la vidéo, avec sa taille et sa résolution en dessous ;
 - une **page par vidéo** : lecteur HTML5, boutons précédent/suivant, retour à la galerie ;
 - une **planche de 9 captures** (3×3, prises à 10 %, 20 % … 90 % de la durée) par vidéo, avec en-tête (nom, taille, résolution, durée) et l'instant de chaque capture.
 
@@ -25,7 +25,7 @@ Le tout tient dans de simples fichiers HTML/CSS/JPEG : tu peux copier le dossier
 
 ### Détails qui comptent
 
-- **Cache** : une image n'est régénérée que si elle est absente ou plus ancienne que la vidéo. Relancer sur le même dossier est quasi instantané (`-force` pour tout refaire).
+- **Cache** : une image n'est régénérée que si elle est absente ou plus ancienne que la vidéo, et les métadonnées lues par ffprobe (durée, résolution) sont gardées dans `img/meta.json`. Relancer sur le même dossier est quasi instantané (`-force` pour tout refaire).
 - **Tolérance aux pannes** : une vidéo illisible est ignorée et signalée, la galerie est générée avec les autres.
 - **Prudence sur le dossier de sortie** : la génération supprime les pages et images obsolètes, donc elle **refuse** d'écrire dans un dossier existant qui contient autre chose qu'une galerie.
 - **Rotation** : la résolution affichée tient compte des vidéos tournées à 90°/270°.

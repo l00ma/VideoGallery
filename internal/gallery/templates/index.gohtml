@@ -10,7 +10,8 @@
 {{- range .Cards}}
   <figure>
     <figcaption><span class="num">Vidéo {{.Number}}</span> <small>{{.Name}}</small></figcaption>
-    <a href="{{.Href}}" title="voir la vidéo"><img src="{{.Thumb}}" width="{{.ThumbW}}" height="{{.ThumbH}}" loading="lazy" alt="{{.Name}}"></a>
+    <a class="thumb" href="{{.Href}}" title="voir la vidéo"><img src="{{.Thumb}}" width="{{.ThumbW}}" height="{{.ThumbH}}" loading="lazy" alt="{{.Name}}"><span class="duration">{{.Duration}}</span></a>
+    <p class="details">{{.Details}}</p>
   </figure>
 {{- end}}
 </main>

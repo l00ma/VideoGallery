@@ -13,7 +13,7 @@ Aucun serveur, aucun JavaScript dans les pages : la galerie s'ouvre d'un double-
 
 ## Ce que ça fait
 
-Tu pointes le programme sur un dossier de vidéos (`mp4`, `webm`, `ogg`), il écrit dans un sous-dossier `pages/` :
+Tu pointes le programme sur un dossier de vidéos (`mp4`, `m4v`, `mov`, `webm`, `ogg`), il écrit dans un sous-dossier `pages/` :
 
 - un **index paginé** de miniatures, avec la grille de ton choix ; chaque miniature porte la durée de la vidéo, avec sa taille, sa résolution et sa date en dessous ;
 - une **page par vidéo** : lecteur HTML5, boutons précédent/suivant, retour à la galerie ;
@@ -28,6 +28,7 @@ Le tout tient dans de simples fichiers HTML/CSS/JPEG : tu peux copier le dossier
 - **Cache** : une image n'est régénérée que si elle est absente ou plus ancienne que la vidéo, et les métadonnées lues par ffprobe (durée, résolution, date de tournage) sont gardées dans `img/meta.json`. Relancer sur le même dossier est quasi instantané (`-force` pour tout refaire).
 - **Tolérance aux pannes** : une vidéo illisible est ignorée et signalée, la galerie est générée avec les autres.
 - **Prudence sur le dossier de sortie** : la génération supprime les pages et images obsolètes, donc elle **refuse** d'écrire dans un dossier existant qui contient autre chose qu'une galerie.
+- **Formats** : un `.mov` (téléphone, appareil photo) est lu par le navigateur comme un MP4. Une vidéo en HEVC/H.265 (format par défaut des iPhone) est acceptée, mais sa lecture dépend du navigateur et du système : la génération le signale, et la page de la vidéo propose de l'ouvrir avec le lecteur du système. Les `.mkv` et `.avi` ne sont pas pris en charge.
 - **Rotation** : la résolution affichée tient compte des vidéos tournées à 90°/270°.
 - **Parallélisme** : plusieurs vidéos sont traitées en même temps (une par cœur par défaut).
 

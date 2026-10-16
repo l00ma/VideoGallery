@@ -153,7 +153,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		return nil, err
 	}
 	if len(videos) == 0 {
-		return nil, fmt.Errorf("aucune vidéo (mp4, webm, ogg) dans %s", opts.VideoDir)
+		return nil, fmt.Errorf("aucune vidéo (%s) dans %s", Formats, opts.VideoDir)
 	}
 	opts.Log("%d vidéo(s) trouvée(s) dans %s", len(videos), opts.VideoDir)
 
@@ -187,6 +187,12 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	sortItems(items, opts.Order)
+	for _, it := range items {
+		if !webCodec(it.Codec) {
+			opts.Log("Attention : %s est en %s, un format dont la lecture dans le navigateur dépend du système (sa page propose d'ouvrir le fichier avec le lecteur vidéo)",
+				it.Name, codecLabel(it.Codec))
+		}
+	}
 	pruneImages(imgDir, items)
 	if err := metas.save(imgDir, items); err != nil {
 		opts.Log("Cache des métadonnées non enregistré : %v", err) // simple ralentissement au prochain passage

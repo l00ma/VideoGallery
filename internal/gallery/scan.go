@@ -18,13 +18,24 @@ type Video struct {
 	ModTime time.Time
 }
 
+// mimeByExt donne le type annoncé dans <source>. Un .mov (téléphones, appareils
+// photo) est annoncé en video/mp4, que tous les navigateurs connaissent :
+// « video/quicktime » n'est pas reconnu partout (Firefox 157 l'accepte, mais
+// un navigateur qui ne le connaît pas écarte la source sans l'essayer), alors
+// que le contenu, du H.264 ou du HEVC dans un conteneur MP4/QuickTime, est le
+// même (voir webCodec pour le HEVC).
 var mimeByExt = map[string]string{
 	".mp4":  "video/mp4",
+	".m4v":  "video/mp4",
+	".mov":  "video/mp4",
 	".webm": "video/webm",
 	".ogg":  "video/ogg",
 }
 
-// Scan liste les vidéos (mp4, webm, ogg) d'un répertoire, sans récursivité.
+// Formats énumère les extensions acceptées, pour les messages.
+const Formats = "mp4, m4v, mov, webm, ogg"
+
+// Scan liste les vidéos (voir Formats) d'un répertoire, sans récursivité.
 func Scan(dir string, sorted bool) ([]Video, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {

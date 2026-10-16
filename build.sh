@@ -163,7 +163,7 @@ write_readme() { # $1 = linux | windows, $2 = fichier de sortie
 The Video Gallery $VERSION  (Linux, 64 bits)
 ============================================
 
-Génère une galerie HTML statique pour un répertoire de vidéos (mp4, webm, ogg).
+Génère une galerie HTML statique pour un répertoire de vidéos (mp4, m4v, mov, webm, ogg).
 La galerie s'ouvre directement dans le navigateur, sans serveur.
 
 CONTENU
@@ -210,7 +210,7 @@ EOF
 The Video Gallery $VERSION  (Windows, 64 bits)
 ==============================================
 
-Génère une galerie HTML statique pour un répertoire de vidéos (mp4, webm, ogg).
+Génère une galerie HTML statique pour un répertoire de vidéos (mp4, m4v, mov, webm, ogg).
 La galerie s'ouvre directement dans le navigateur, sans serveur.
 
 CONTENU

@@ -14,7 +14,7 @@ const metaFile = "meta.json"
 
 // metaVersion change quand Meta s'enrichit : un cache d'une autre version est
 // ignoré (ffprobe est relancé, les images, elles, restent en cache).
-const metaVersion = 2
+const metaVersion = 3
 
 type metaJSON struct {
 	Version int                  `json:"version"`

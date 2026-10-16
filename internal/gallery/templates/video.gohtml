@@ -11,6 +11,10 @@
     <source src="{{.Source}}" type="{{.MIME}}">
     Votre navigateur ne supporte pas la balise vidéo.
   </video>
+  {{- if .Unsupported}}
+  <p class="warn">Cette vidéo est en {{.Unsupported}}, un format que certains navigateurs ou systèmes ne savent pas lire.
+    Si l'image reste noire, si seul le son est lu ou si rien ne démarre, <a href="{{.Source}}">ouvrez le fichier</a> avec le lecteur vidéo de votre système.</p>
+  {{- end}}
   <p><a class="btn pill" href="{{.Back}}" title="page principale">{{template "icon-grid"}}<span>Retour à la galerie</span></a></p>
   <div class="sheet-row">
     {{if .Prev}}<a class="btn" href="{{.Prev}}" title="vidéo précédente" aria-label="Vidéo précédente">{{template "icon-prev"}}</a>{{else}}<span></span>{{end}}

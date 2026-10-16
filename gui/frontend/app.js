@@ -99,7 +99,7 @@ function clearConsole() { el.console.replaceChildren(); }
 const INTRO = [
   "Prérequis pour créer votre galerie :",
   "",
-  "1 - Les vidéos doivent être au format mp4, webm ou ogg, toutes dans le même répertoire.",
+  "1 - Les vidéos doivent être au format mp4, m4v, mov, webm ou ogg, toutes dans le même répertoire.",
   "2 - Une planche est créée pour chaque vidéo à partir de 9 images extraites",
   "    automatiquement (ffmpeg doit être installé).",
   "3 - La galerie est créée dans le sous-répertoire « pages » et s'ouvre sans serveur.",

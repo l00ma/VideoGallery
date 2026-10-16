@@ -83,6 +83,7 @@ type videoView struct {
 	Name           string
 	Source         htmltemplate.URL
 	MIME           string
+	Unsupported    string // codec que tous les navigateurs ne lisent pas (« HEVC (H.265) »), sinon vide
 	Poster         htmltemplate.URL
 	Ratio          float64 // largeur/hauteur du lecteur, réservé avant le chargement
 	Sheet          htmltemplate.URL
@@ -159,7 +160,8 @@ func render(opts Options, items []item) (int, error) {
 		v := videoView{
 			Gallery: opts.Name, Number: n, Total: total, Name: it.Name,
 			Source: urlPath(filepath.ToSlash(filepath.Join(rel, it.Name))), MIME: it.MIME,
-			Poster: urlPath(it.Thumb), Ratio: float64(it.ThumbW) / float64(it.ThumbH), Sheet: urlPath(it.Sheet), SheetW: it.SheetW, SheetH: it.SheetH,
+			Unsupported: unsupported(it.Codec),
+			Poster:      urlPath(it.Thumb), Ratio: float64(it.ThumbW) / float64(it.ThumbH), Sheet: urlPath(it.Sheet), SheetW: it.SheetW, SheetH: it.SheetH,
 			Prev: prev, Next: next,
 			Back: pageFile(i/perPage + 1), Version: Version,
 		}
@@ -210,4 +212,11 @@ func removeOldPages(dir string) error {
 		}
 	}
 	return nil
+}
+
+func unsupported(codec string) string {
+	if webCodec(codec) {
+		return ""
+	}
+	return codecLabel(codec)
 }

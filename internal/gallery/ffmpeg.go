@@ -70,13 +70,40 @@ type Meta struct {
 	Height   int     `json:"height"`
 	// Created : date de tournage (creation_time du conteneur), en secondes
 	// Unix ; 0 si absente ou invraisemblable.
-	Created int64 `json:"created,omitempty"`
+	Created int64  `json:"created,omitempty"`
+	Codec   string `json:"codec"` // codec vidéo selon ffprobe : h264, hevc, vp9...
+}
+
+// webCodec : codecs que les navigateurs courants lisent partout (Firefox,
+// Chromium, Safari, Edge). Le HEVC des iPhone n'en fait pas partie : sa
+// lecture dépend du système (décodeur matériel, extension HEVC sous Windows,
+// ffmpeg du système pour Firefox sous Linux). Il est souvent lu, pas toujours.
+func webCodec(codec string) bool {
+	switch codec {
+	case "h264", "vp8", "vp9", "av1", "theora":
+		return true
+	}
+	return false
+}
+
+// codecLabel : nom lisible d'un codec pour les messages.
+func codecLabel(codec string) string {
+	switch codec {
+	case "hevc":
+		return "HEVC (H.265)"
+	case "mpeg4":
+		return "MPEG-4 Part 2"
+	case "":
+		return "inconnu"
+	}
+	return strings.ToUpper(codec)
 }
 
 type probeOutput struct {
 	Streams []struct {
-		Width        int `json:"width"`
-		Height       int `json:"height"`
+		CodecName    string `json:"codec_name"`
+		Width        int    `json:"width"`
+		Height       int    `json:"height"`
 		Tags         map[string]string
 		SideDataList []struct {
 			Rotation float64 `json:"rotation"`
@@ -95,7 +122,7 @@ func (t Tools) Probe(ctx context.Context, path string) (Meta, error) {
 	cmd := exec.CommandContext(ctx, t.FFprobe,
 		"-v", "error",
 		"-select_streams", "v:0",
-		"-show_entries", "stream=width,height:stream_tags=rotate:stream_side_data=rotation:format=duration:format_tags=creation_time",
+		"-show_entries", "stream=codec_name,width,height:stream_tags=rotate:stream_side_data=rotation:format=duration:format_tags=creation_time",
 		"-of", "json",
 		path)
 	var stderr bytes.Buffer
@@ -118,7 +145,7 @@ func (t Tools) Probe(ctx context.Context, path string) (Meta, error) {
 		return Meta{}, errors.New("aucun flux vidéo")
 	}
 	st := po.Streams[0]
-	m.Width, m.Height = st.Width, st.Height
+	m.Width, m.Height, m.Codec = st.Width, st.Height, st.CodecName
 
 	rotation := 0.0
 	for _, sd := range st.SideDataList {

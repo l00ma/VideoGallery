@@ -2,6 +2,7 @@ package gallery
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -129,7 +130,7 @@ func TestThumbWidth(t *testing.T) {
 
 func TestScan(t *testing.T) {
 	dir := t.TempDir()
-	for _, n := range []string{"b.mp4", "A.WEBM", "c.ogg", "d.avi", "e.mp4.jpg", "notes.txt"} {
+	for _, n := range []string{"b.mp4", "A.WEBM", "c.ogg", "d.avi", "e.mp4.jpg", "notes.txt", "f.MOV", "g.m4v", "h.mkv"} {
 		if err := os.WriteFile(filepath.Join(dir, n), nil, 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -145,11 +146,52 @@ func TestScan(t *testing.T) {
 	for _, v := range vids {
 		names = append(names, v.Name)
 	}
-	if got := strings.Join(names, ","); got != "A.WEBM,b.mp4,c.ogg" {
+	if got := strings.Join(names, ","); got != "A.WEBM,b.mp4,c.ogg,f.MOV,g.m4v" {
 		t.Errorf("Scan = %s", got)
 	}
 	if vids[0].MIME != "video/webm" {
 		t.Errorf("MIME = %s", vids[0].MIME)
+	}
+	// un .mov annoncé en video/quicktime serait écarté par Firefox et Chromium
+	if vids[3].MIME != "video/mp4" || vids[4].MIME != "video/mp4" {
+		t.Errorf("MIME .mov/.m4v = %s, %s", vids[3].MIME, vids[4].MIME)
+	}
+}
+
+// Une vidéo HEVC (iPhone) dans un .mov : elle entre dans la galerie, mais sa
+// page prévient qu'elle peut ne pas être lue et propose d'ouvrir le fichier ;
+// une vidéo H.264 n'a pas d'avertissement.
+func TestUnsupportedCodecWarning(t *testing.T) {
+	tools, err := FindTools()
+	if err != nil {
+		t.Skip("ffmpeg indisponible")
+	}
+	dir := t.TempDir()
+	for n, codec := range map[string]string{"iphone.mov": "libx265", "camera.mov": "libx264"} {
+		cmd := exec.Command(tools.FFmpeg, "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=160x90:rate=10:duration=2",
+			"-c:v", codec, "-pix_fmt", "yuv420p", filepath.Join(dir, n))
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Skipf("encodeur %s indisponible: %v: %s", codec, err, out)
+		}
+	}
+	var logs []string
+	opts := Options{VideoDir: dir, Cols: 2, Rows: 2, FrameWidth: 120, Tools: tools,
+		Log: func(f string, a ...any) { logs = append(logs, fmt.Sprintf(f, a...)) }}
+	if res, err := Run(context.Background(), opts); err != nil || res.Videos != 2 {
+		t.Fatalf("Run: %+v, %v", res, err)
+	}
+	camera, _ := os.ReadFile(filepath.Join(dir, "pages", "video-1.html"))
+	iphone, _ := os.ReadFile(filepath.Join(dir, "pages", "video-2.html"))
+	if strings.Contains(string(camera), `class="warn"`) {
+		t.Error("avertissement sur une vidéo H.264")
+	}
+	for _, want := range []string{`class="warn"`, "HEVC (H.265)", `<a href="../iphone.mov">`, `type="video/mp4"`} {
+		if !strings.Contains(string(iphone), want) {
+			t.Errorf("page HEVC sans %q:\n%s", want, iphone)
+		}
+	}
+	if !strings.Contains(strings.Join(logs, "\n"), "iphone.mov est en HEVC") {
+		t.Errorf("pas d'avertissement dans le journal:\n%s", strings.Join(logs, "\n"))
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"videogallery/internal/gallery"
 	"videogallery/internal/opener"
@@ -52,7 +53,7 @@ func newFlagSet(c *cli) *flag.FlagSet {
 	fs.BoolVar(&c.doUpdate, "update", false, "installer la dernière version, puis quitter")
 	fs.BoolVar(&c.noUpdateCheck, "no-update-check", false, "ne pas chercher de nouvelle version")
 	// Les messages de flag (en anglais) sont tus : run affiche l'erreur en
-	// français suivie d'un rappel court, et l'aide complète sur -h.
+	// français suivie d'un rappel court, et l'aide complète sur --help.
 	fs.SetOutput(io.Discard)
 	fs.Usage = func() {}
 	return fs
@@ -60,32 +61,84 @@ func newFlagSet(c *cli) *flag.FlagSet {
 
 // usageHint rappelle la syntaxe après une erreur d'utilisation.
 func usageHint() {
-	fmt.Fprintf(os.Stderr, "Usage : %s [options] <dossier des vidéos>\n"+
-		"Aide complète : %[1]s -h\n", filepath.Base(os.Args[0]))
+	fmt.Fprintf(os.Stderr, "Usage : %s [--option valeur]... <dossier des vidéos>\n"+
+		"Aide complète : %[1]s --help\n", filepath.Base(os.Args[0]))
 }
 
-// flagError traduit les erreurs du paquet flag (seules les formes connues ;
-// une autre reste en anglais plutôt que d'être mal traduite).
+// flagError traduit les erreurs du paquet flag, en nommant les options sous
+// la forme --nom (seules les formes connues ; une autre reste en anglais
+// plutôt que d'être mal traduite).
 func flagError(err error) string {
 	msg := err.Error()
 	switch {
-	case strings.HasPrefix(msg, "flag provided but not defined: "):
-		return "option inconnue : " + strings.TrimPrefix(msg, "flag provided but not defined: ")
-	case strings.HasPrefix(msg, "flag needs an argument: "):
-		return "cette option attend une valeur : " + strings.TrimPrefix(msg, "flag needs an argument: ")
+	case strings.HasPrefix(msg, "flag provided but not defined: -"):
+		return "option inconnue : --" + strings.TrimPrefix(msg, "flag provided but not defined: -")
+	case strings.HasPrefix(msg, "flag needs an argument: -"):
+		return "cette option attend une valeur : --" + strings.TrimPrefix(msg, "flag needs an argument: -")
 	case strings.HasPrefix(msg, "invalid boolean value "):
 		// invalid boolean value "x" for -open: parse error
 		msg = strings.TrimPrefix(msg, "invalid boolean value ")
-		msg = strings.Replace(msg, " for -", " pour l'option -", 1)
-		return "valeur invalide " + strings.Replace(msg, ": parse error", " : une option comme -open s'écrit seule (ou -open=false)", 1)
+		msg = strings.Replace(msg, " for -", " pour l'option --", 1)
+		return "valeur invalide " + strings.Replace(msg, ": parse error", " : cette option s'écrit seule, sans valeur", 1)
 	case strings.HasPrefix(msg, "invalid value "):
 		// invalid value "x" for flag -cols: parse error
 		msg = strings.TrimPrefix(msg, "invalid value ")
-		msg = strings.Replace(msg, " for flag -", " pour l'option -", 1)
+		msg = strings.Replace(msg, " for flag -", " pour l'option --", 1)
 		msg = strings.Replace(msg, ": value out of range", " : nombre trop grand", 1)
 		return "valeur invalide " + strings.Replace(msg, ": parse error", " : nombre entier attendu", 1)
 	}
 	return msg
+}
+
+// legacySyntax repère les écritures d'options qui seront refusées en 2.0.0
+// (un seul tiret, valeur collée par =) et propose pour chacune la forme
+// --option valeur. -h reste admis (convention universelle).
+func legacySyntax(fs *flag.FlagSet, args []string) [][2]string {
+	var out [][2]string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--" {
+			break // la suite n'est pas faite d'options
+		}
+		if len(a) < 2 || a[0] != '-' {
+			continue // dossier des vidéos
+		}
+		name, value, hasEq := strings.Cut(strings.TrimLeft(a, "-"), "=")
+		f := fs.Lookup(name)
+		if f == nil {
+			continue // option inconnue (ou -h) : traitée par fs.Parse
+		}
+		isBool := false
+		if b, ok := f.Value.(interface{ IsBoolFlag() bool }); ok && b.IsBoolFlag() {
+			isBool = true
+		}
+		written := a
+		if !hasEq && !isBool && i+1 < len(args) {
+			i++
+			value = args[i]
+			written += " " + args[i]
+		}
+		if !strings.HasPrefix(a, "--") || hasEq {
+			good := "--" + name
+			switch {
+			case isBool && hasEq && value == "false":
+				good = "(retirez l'option : elle est inactive par défaut)"
+			case !isBool:
+				good += " " + shellQuote(value)
+			}
+			out = append(out, [2]string{written, good})
+		}
+	}
+	return out
+}
+
+// shellQuote met entre guillemets doubles une valeur que le terminal
+// couperait (espace, #...) : ils marchent sous Linux comme sous Windows.
+func shellQuote(v string) string {
+	if v != "" && !strings.ContainsAny(v, " \t#'\"$`&|;<>()*?!~") {
+		return v
+	}
+	return `"` + v + `"`
 }
 
 func run() int {
@@ -117,6 +170,19 @@ func run() int {
 		dir, args = fs.Arg(0), fs.Args()[1:]
 	}
 
+	if legacy := legacySyntax(fs, os.Args[1:]); len(legacy) > 0 {
+		fmt.Fprintln(os.Stderr, "attention : écriture d'option ancienne, refusée à partir de la version 2.0.0.")
+		fmt.Fprintln(os.Stderr, "Écrivez à la place :")
+		width := 0
+		for _, l := range legacy {
+			width = max(width, utf8.RuneCountInString(l[0]))
+		}
+		for _, l := range legacy {
+			pad := strings.Repeat(" ", width-utf8.RuneCountInString(l[0]))
+			fmt.Fprintf(os.Stderr, "  %s%s  →  %s\n", l[0], pad, l[1])
+		}
+		fmt.Fprintln(os.Stderr)
+	}
 	if c.showVersion {
 		fmt.Println("The Video Gallery", gallery.Version)
 		return 0
@@ -246,7 +312,7 @@ func announceUpdate(disabled bool) func() {
 		select {
 		case v := <-result:
 			if v != "" {
-				fmt.Fprintf(os.Stderr, "\nUne nouvelle version est disponible : %s (vous avez %s). Pour l'installer : %s -update\n",
+				fmt.Fprintf(os.Stderr, "\nUne nouvelle version est disponible : %s (vous avez %s). Pour l'installer : %s --update\n",
 					v, gallery.Version, filepath.Base(os.Args[0]))
 			}
 		case <-time.After(1500 * time.Millisecond):

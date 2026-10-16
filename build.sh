@@ -179,7 +179,9 @@ PRÉREQUIS
 UTILISATION
   ./VideoGallery                       (interface graphique)
   ./videogallery --help                (ligne de commande)
-  ./videogallery -cols 4 -rows 5 -name "Ma galerie" /chemin/vers/videos
+  ./videogallery --cols 4 --rows 5 --name "Ma galerie" /chemin/vers/videos
+
+  Les options s'écrivent --option valeur (--help détaille tout).
 
 La galerie est écrite dans le sous-répertoire « pages » du répertoire des
 vidéos. Ouvrez pages/index.html. Les images déjà générées sont réutilisées :
@@ -194,8 +196,8 @@ MENU DES APPLICATIONS (optionnel, sans sudo)
 MISES À JOUR
   L'interface signale une nouvelle version au démarrage (case « Rechercher les
   mises à jour au démarrage » pour la désactiver) et se met à jour d'un clic
-  en redémarrant. En ligne de commande : ./videogallery -update
-  (un avis s'affiche au plus une fois par jour ; -no-update-check le coupe).
+  en redémarrant. En ligne de commande : ./videogallery --update
+  (un avis s'affiche au plus une fois par jour ; --no-update-check le coupe).
   Seuls les fichiers de ce dossier fournis par la release sont remplacés, et
   l'entrée de menu installée par install.sh est rafraîchie.
 
@@ -227,7 +229,12 @@ PRÉREQUIS
 
 UTILISATION
   Double-clic sur VideoGallery.exe, ou en ligne de commande :
-  videogallery.exe -cols 4 -rows 5 -name "Ma galerie" C:\\chemin\\vers\\videos
+  videogallery.exe --cols 4 --rows 5 --name "Ma galerie" C:\\chemin\\vers\\videos
+  videogallery.exe --help              (aide complète)
+
+  Les options s'écrivent --option valeur ; les valeurs qui contiennent une
+  espace ou commencent par # se mettent entre guillemets doubles
+  (--bg "#3d3846").
 
 La galerie est écrite dans le sous-répertoire « pages » du répertoire des
 vidéos. Ouvrez pages\\index.html.
@@ -235,7 +242,7 @@ vidéos. Ouvrez pages\\index.html.
 MISES À JOUR
   L'interface signale une nouvelle version au démarrage (case « Rechercher les
   mises à jour au démarrage » pour la désactiver) et se met à jour d'un clic
-  en redémarrant. En ligne de commande : videogallery.exe -update
+  en redémarrant. En ligne de commande : videogallery.exe --update
   ffmpeg.exe et ffprobe.exe ne sont jamais touchés.
 
 NOTE

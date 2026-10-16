@@ -25,7 +25,7 @@ Le tout tient dans de simples fichiers HTML/CSS/JPEG : tu peux copier le dossier
 
 ### Détails qui comptent
 
-- **Cache** : une image n'est régénérée que si elle est absente ou plus ancienne que la vidéo, et les métadonnées lues par ffprobe (durée, résolution, date de tournage) sont gardées dans `img/meta.json`. Relancer sur le même dossier est quasi instantané (`-force` pour tout refaire).
+- **Cache** : une image n'est régénérée que si elle est absente ou plus ancienne que la vidéo, et les métadonnées lues par ffprobe (durée, résolution, date de tournage) sont gardées dans `img/meta.json`. Relancer sur le même dossier est quasi instantané (`--force` pour tout refaire).
 - **Tolérance aux pannes** : une vidéo illisible est ignorée et signalée, la galerie est générée avec les autres.
 - **Prudence sur le dossier de sortie** : la génération supprime les pages et images obsolètes, donc elle **refuse** d'écrire dans un dossier existant qui contient autre chose qu'une galerie.
 - **Formats** : un `.mov` (téléphone, appareil photo) est lu par le navigateur comme un MP4. Une vidéo en HEVC/H.265 (format par défaut des iPhone) est acceptée, mais sa lecture dépend du navigateur et du système : la génération le signale, et la page de la vidéo propose de l'ouvrir avec le lecteur du système. Les `.mkv` et `.avi` ne sont pas pris en charge.
@@ -57,28 +57,31 @@ Sous Linux, `./install.sh` ajoute « The Video Gallery » au menu des applicatio
 ### Ligne de commande
 
 ```bash
-videogallery [options] <répertoire des vidéos>
+videogallery [--option valeur]... <répertoire des vidéos>
 
-videogallery -cols 4 -rows 5 -name "Vacances" ~/Vidéos/vacances
-videogallery -sort date-desc -open ~/Vidéos/vacances
-videogallery -h        # aide complète, avec exemples et codes de retour
+videogallery --cols 4 --rows 5 --name "Vacances" ~/Vidéos/vacances
+videogallery --sort date-desc --open ~/Vidéos/vacances
+videogallery --bg "#3d3846" --fg "#baaf91" ~/Vidéos/vacances
+videogallery --help    # aide complète : syntaxe, exemples, codes de retour
 ```
+
+Une seule syntaxe : `--option valeur`, ou `--option` seule pour une option oui/non (`--open`, `--force`). Les valeurs qui contiennent une espace ou commencent par `#` (les couleurs) se mettent entre guillemets doubles, qui fonctionnent sous Linux comme sous Windows. Les anciennes écritures (`-cols 3`, `--cols=3`) sont encore acceptées avec un avertissement, mais seront refusées à partir de la version 2.0.0.
 
 | Option | Défaut | Rôle |
 |---|---|---|
-| `-name` | nom du dossier | nom affiché de la galerie |
-| `-out` | `<dossier>/pages` | répertoire de sortie |
-| `-cols`, `-rows` | `4`, `5` | miniatures par ligne / par colonne |
-| `-bg`, `-fg` | `#baaf91`, `#333333` | couleurs de fond et de texte (`#rrggbb`) |
-| `-frame-width` | `320` | largeur en pixels d'une capture de la planche |
-| `-jobs` | nombre de CPU | vidéos traitées en parallèle |
-| `-sort` | `name` | ordre des vidéos : `name`, `name-desc`, `date-desc` (récentes d'abord), `date`, `duration-desc` (longues d'abord), `duration`, `size-desc` (lourdes d'abord), `size`, `none` (ordre du système de fichiers). La date est celle du tournage si la vidéo l'indique, sinon celle du fichier |
-| `-no-sort` | | équivaut à `-sort none` (conservé pour compatibilité) |
-| `-open` | | ouvrir la galerie dans le navigateur à la fin |
-| `-force` | | régénérer les images même à jour |
-| `-update` | | installer la dernière version publiée |
-| `-no-update-check` | | ne pas chercher de nouvelle version |
-| `-version` | | afficher la version |
+| `--name` | nom du dossier | nom affiché de la galerie |
+| `--out` | `<dossier>/pages` | répertoire de sortie |
+| `--cols`, `--rows` | `4`, `5` | miniatures par ligne / par colonne |
+| `--bg`, `--fg` | `#baaf91`, `#333333` | couleurs de fond et de texte (`#rrggbb`) |
+| `--frame-width` | `320` | largeur en pixels d'une capture de la planche |
+| `--jobs` | nombre de CPU | vidéos traitées en parallèle |
+| `--sort` | `name` | ordre des vidéos : `name`, `name-desc`, `date-desc` (récentes d'abord), `date`, `duration-desc` (longues d'abord), `duration`, `size-desc` (lourdes d'abord), `size`, `none` (ordre du système de fichiers). La date est celle du tournage si la vidéo l'indique, sinon celle du fichier |
+| `--no-sort` | | équivaut à `--sort none` (conservé pour compatibilité) |
+| `--open` | | ouvrir la galerie dans le navigateur à la fin |
+| `--force` | | régénérer les images même à jour |
+| `--update` | | installer la dernière version publiée |
+| `--no-update-check` | | ne pas chercher de nouvelle version |
+| `--version` | | afficher la version |
 
 Codes de retour : `0` succès, `1` erreur, `2` mauvais arguments, `3` galerie générée mais certaines vidéos ont été ignorées.
 
@@ -86,7 +89,7 @@ Ouvre ensuite `pages/index.html`.
 
 ### Mises à jour
 
-L'interface signale une nouvelle version au démarrage (désactivable) et se met à jour d'un clic, puis redémarre. En ligne de commande : `videogallery -update`. Seuls les fichiers déjà installés et fournis par la release sont remplacés, et l'entrée de menu Linux est rafraîchie. L'archive est vérifiée avec l'empreinte SHA-256 de la release ; elle n'est pas signée.
+L'interface signale une nouvelle version au démarrage (désactivable) et se met à jour d'un clic, puis redémarre. En ligne de commande : `videogallery --update`. Seuls les fichiers déjà installés et fournis par la release sont remplacés, et l'entrée de menu Linux est rafraîchie. L'archive est vérifiée avec l'empreinte SHA-256 de la release ; elle n'est pas signée.
 
 > La recherche interroge l'API publique de GitHub, sans authentification ; la seule information transmise est la version du programme (en-tête `User-Agent`), en plus de l'adresse IP inhérente à toute requête.
 

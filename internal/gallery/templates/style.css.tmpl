@@ -139,7 +139,15 @@ a.thumb:hover { font-weight: normal; }
   gap: 1rem;
 }
 .sheet-row { justify-items: center; }
-.sheet { min-width: 0; max-width: 100%; height: auto; }
+.sheet-box { position: relative; min-width: 0; max-width: 100%; line-height: 0; }
+.sheet { display: block; max-width: 100%; height: auto; }
+/* Chaque capture de la planche ouvre la vidéo à son instant (#t=...). */
+.cell { position: absolute; }
+.cell:hover, .cell:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: -3px;
+  background: rgba(255, 255, 255, 0.12);
+}
 
 .pager { margin: 1.5rem 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
 .pager a, .pager strong {

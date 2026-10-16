@@ -16,7 +16,7 @@ Aucun serveur, aucun JavaScript dans les pages : la galerie s'ouvre d'un double-
 Tu pointes le programme sur un dossier de vidéos (`mp4`, `m4v`, `mov`, `webm`, `ogg`), il écrit dans un sous-dossier `pages/` :
 
 - un **index paginé** de miniatures, avec la grille de ton choix ; chaque miniature porte la durée de la vidéo, avec sa taille, sa résolution et sa date en dessous ;
-- une **page par vidéo** : lecteur HTML5, boutons précédent/suivant, retour à la galerie ;
+- une **page par vidéo** : lecteur HTML5, boutons précédent/suivant, retour à la galerie ; un clic sur une capture de la planche lance la vidéo à cet instant, dans le lecteur de la page (petit script facultatif : sans JavaScript, la vidéo s'ouvre à cet instant dans un nouvel onglet) ;
 - une **planche de 9 captures** (3×3, prises à 10 %, 20 % … 90 % de la durée) par vidéo, avec en-tête (nom, taille, résolution, durée) et l'instant de chaque capture.
 
 Les captures sont extraites automatiquement avec ffmpeg : plus besoin de fournir une image à côté de chaque vidéo.

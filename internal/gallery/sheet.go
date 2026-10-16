@@ -46,6 +46,32 @@ var (
 	stampFG    = color.RGBA{0xff, 0xff, 0xff, 0xff}
 )
 
+// sheetHeader calcule la mise en page de l'en-tête d'une planche de largeur
+// gridW : taille de police, marge, hauteur de ligne et hauteur totale.
+func sheetHeader(gridW int) (headPx float64, pad, lineH, headerH int) {
+	headPx = clampF(float64(gridW)/58, 11, 40)
+	face := newFace(true, headPx)
+	defer face.Close()
+	pad = int(math.Round(headPx * 0.6))
+	lineH = lineHeight(face)
+	return headPx, pad, lineH, 2*pad + 2*lineH
+}
+
+// sheetCells retrouve, d'après la seule taille d'une planche (y compris en
+// cache), le rectangle de chacune de ses captures.
+func sheetCells(sheetW, sheetH int) [sheetFrames]image.Rectangle {
+	_, _, _, headerH := sheetHeader(sheetW)
+	w := (sheetW - (sheetGrid-1)*sheetGap) / sheetGrid
+	h := (sheetH - headerH - (sheetGrid-1)*sheetGap) / sheetGrid
+	var cells [sheetFrames]image.Rectangle
+	for i := range cells {
+		x := (i % sheetGrid) * (w + sheetGap)
+		y := headerH + (i/sheetGrid)*(h+sheetGap)
+		cells[i] = image.Rect(x, y, x+w, y+h)
+	}
+	return cells
+}
+
 // ComposeSheet assemble les captures en grille 3x3 sous un en-tête (nom,
 // taille, résolution, durée), avec l'instant de chaque capture inscrit en bas
 // à gauche. Les captures elles-mêmes ne sont pas modifiées : la miniature de
@@ -57,13 +83,10 @@ func ComposeSheet(frames []image.Image, times [sheetFrames]float64, info SheetIn
 	gridH := sheetGrid*h + (sheetGrid-1)*sheetGap
 
 	// En-tête : deux lignes, dont la taille suit la largeur de la planche.
-	headPx := clampF(float64(gridW)/58, 11, 40)
+	headPx, pad, lineH, headerH := sheetHeader(gridW)
 	nameFace, infoFace := newFace(true, headPx), newFace(false, headPx)
 	defer nameFace.Close()
 	defer infoFace.Close()
-	pad := int(math.Round(headPx * 0.6))
-	lineH := lineHeight(nameFace)
-	headerH := 2*pad + 2*lineH
 
 	sheet := image.NewRGBA(image.Rect(0, 0, gridW, headerH+gridH))
 	draw.Draw(sheet, sheet.Bounds(), image.NewUniform(color.Black), image.Point{}, draw.Src)

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	texttemplate "text/template"
 	"time"
@@ -61,6 +62,18 @@ type cardView struct {
 	ThumbW, ThumbH int
 }
 
+// cellView : lien posé sur une capture de la planche. Le petit script de la
+// page vidéo lit alors la vidéo dans le lecteur de la page, à l'instant de la
+// capture ; sans JavaScript, le lien ouvre la vidéo à cet instant dans un
+// nouvel onglet (fragment de média « #t=secondes »). Sa position est en
+// pourcentages de la planche, pour suivre le redimensionnement de l'image.
+type cellView struct {
+	Href  htmltemplate.URL
+	At    string // instant en secondes (« 33.18 »), lu par le script de la page
+	Style htmltemplate.CSS
+	Clock string
+}
+
 type pageLink struct {
 	Number  int
 	Href    string
@@ -88,6 +101,7 @@ type videoView struct {
 	Ratio          float64 // largeur/hauteur du lecteur, réservé avant le chargement
 	Sheet          htmltemplate.URL
 	SheetW, SheetH int
+	Cells          []cellView // zones cliquables posées sur les captures de la planche
 	Prev, Next     string
 	Back           string
 	Version        string
@@ -157,9 +171,10 @@ func render(opts Options, items []item) (int, error) {
 		if n < total {
 			next = videoFile(n + 1)
 		}
+		source := urlPath(filepath.ToSlash(filepath.Join(rel, it.Name)))
 		v := videoView{
 			Gallery: opts.Name, Number: n, Total: total, Name: it.Name,
-			Source: urlPath(filepath.ToSlash(filepath.Join(rel, it.Name))), MIME: it.MIME,
+			Source: source, MIME: it.MIME, Cells: sheetLinks(source, it),
 			Unsupported: unsupported(it.Codec),
 			Poster:      urlPath(it.Thumb), Ratio: float64(it.ThumbW) / float64(it.ThumbH), Sheet: urlPath(it.Sheet), SheetW: it.SheetW, SheetH: it.SheetH,
 			Prev: prev, Next: next,
@@ -219,4 +234,24 @@ func unsupported(codec string) string {
 		return ""
 	}
 	return codecLabel(codec)
+}
+
+func sheetLinks(source htmltemplate.URL, it item) []cellView {
+	if it.Duration <= 0 || it.SheetW <= 0 || it.SheetH <= 0 {
+		return nil
+	}
+	times := FrameTimes(it.Duration)
+	pct := func(v, total int) float64 { return 100 * float64(v) / float64(total) }
+	var cells []cellView
+	for i, r := range sheetCells(it.SheetW, it.SheetH) {
+		at := strconv.FormatFloat(times[i], 'f', 2, 64)
+		cells = append(cells, cellView{
+			Href: source + htmltemplate.URL("#t="+at),
+			At:   at,
+			Style: htmltemplate.CSS(fmt.Sprintf("left:%.3f%%;top:%.3f%%;width:%.3f%%;height:%.3f%%",
+				pct(r.Min.X, it.SheetW), pct(r.Min.Y, it.SheetH), pct(r.Dx(), it.SheetW), pct(r.Dy(), it.SheetH))),
+			Clock: formatClock(times[i]),
+		})
+	}
+	return cells
 }

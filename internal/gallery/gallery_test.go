@@ -271,6 +271,16 @@ func TestRunEndToEnd(t *testing.T) {
 	if !strings.Contains(string(page), `src="../d%27eux%20%232.mp4"`) {
 		t.Errorf("source vidéo mal encodée:\n%s", page)
 	}
+	// 9 captures cliquables, qui ouvrent la vidéo à l'instant de la capture
+	// (vidéo de 4 s : la 1re capture est à 0,4 s)
+	if n := strings.Count(string(page), `class="cell"`); n != 9 {
+		t.Errorf("%d zones cliquables sur la planche, attendu 9", n)
+	}
+	for _, want := range []string{`href="../d%27eux%20%232.mp4#t=0.40"`, `data-t="0.40"`, `video.currentTime = t;`} {
+		if !strings.Contains(string(page), want) {
+			t.Errorf("page vidéo sans %q (lecture à l'instant d'une capture):\n%s", want, page)
+		}
+	}
 
 	index, _ := os.ReadFile(filepath.Join(dir, "pages", "index.html"))
 	for _, want := range []string{`<span class="duration">0:04</span>`, `160 × 90`} {

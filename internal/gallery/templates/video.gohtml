@@ -18,9 +18,33 @@
   <p><a class="btn pill" href="{{.Back}}" title="page principale">{{template "icon-grid"}}<span>Retour à la galerie</span></a></p>
   <div class="sheet-row">
     {{if .Prev}}<a class="btn" href="{{.Prev}}" title="vidéo précédente" aria-label="Vidéo précédente">{{template "icon-prev"}}</a>{{else}}<span></span>{{end}}
-    <img class="sheet" src="{{.Sheet}}" width="{{.SheetW}}" height="{{.SheetH}}" loading="lazy" alt="Planche de captures de {{.Name}}">
+    <div class="sheet-box">
+      <img class="sheet" src="{{.Sheet}}" width="{{.SheetW}}" height="{{.SheetH}}" loading="lazy" alt="Planche de captures de {{.Name}}">
+      {{- range .Cells}}
+      <a class="cell" href="{{.Href}}" data-t="{{.At}}" style="{{.Style}}" target="_blank" rel="noopener" title="Lire à partir de {{.Clock}}" aria-label="Lire à partir de {{.Clock}}"></a>
+      {{- end}}
+    </div>
     {{if .Next}}<a class="btn" href="{{.Next}}" title="vidéo suivante" aria-label="Vidéo suivante">{{template "icon-next"}}</a>{{else}}<span></span>{{end}}
   </div>
 </main>
-{{template "footer" .Version}}</body>
+{{template "footer" .Version}}
+<script>
+// Seul script de la galerie, facultatif : un clic sur une capture lit la vidéo
+// dans le lecteur de la page, à l'instant de la capture. Sans JavaScript (ou
+// avec Ctrl/Maj/clic milieu), le lien ouvre la vidéo à cet instant dans un
+// nouvel onglet.
+document.querySelectorAll(".cell").forEach(function (cell) {
+  cell.addEventListener("click", function (e) {
+    var video = document.querySelector(".player video");
+    var t = parseFloat(cell.dataset.t);
+    if (!video || isNaN(t) || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    video.currentTime = t;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    var p = video.play();
+    if (p && p.catch) p.catch(function () {}); // lecture refusée : la vidéo reste calée sur l'instant
+  });
+});
+</script>
+</body>
 </html>

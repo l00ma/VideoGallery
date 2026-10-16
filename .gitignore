@@ -12,3 +12,6 @@
 .vscode/
 *.swp
 .DS_Store
+
+# Instructions locales pour Claude Code (jamais publiées)
+/CLAUDE.md

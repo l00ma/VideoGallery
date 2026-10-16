@@ -234,6 +234,25 @@ function onUpdateProgress({ done, total }) {
   }
 }
 
+// La fenêtre suit la hauteur du bandeau de mise à jour : elle grandit quand il
+// apparaît (ou passe sur deux lignes) et rétrécit d'autant quand il disparaît,
+// pour que le reste du formulaire garde sa place. Les tailles Wails sont en
+// pixels logiques, comme celles du DOM (Windows : mise à l'échelle DPI incluse).
+let barSpace = 0;
+
+async function fitUpdateBar() {
+  const space = el.updateBar.hidden ? 0 : el.updateBar.offsetHeight + 12; // 12 = gap de <main>
+  const delta = space - barSpace;
+  barSpace = space;
+  if (!delta) return;
+  try {
+    if (await rt().WindowIsMaximised() || await rt().WindowIsFullscreen()) return;
+    const { w, h } = await rt().WindowGetSize();
+    const max = window.screen.availHeight || h + delta;
+    rt().WindowSetSize(w, Math.min(h + delta, Math.max(h, max)));
+  } catch (_) { /* au pire, <main> défile (style.css) */ }
+}
+
 // ---------- initialisation ----------
 
 // Les liaisons Wails sont injectées de façon asynchrone : on les attend un peu.
@@ -285,6 +304,7 @@ async function init() {
     if (pendingUpdate && pendingUpdate.url) rt().BrowserOpenURL(pendingUpdate.url);
   });
 
+  new ResizeObserver(fitUpdateBar).observe(el.updateBar);
   if (prefs.checkUpdates) checkUpdate(false);
 }
 

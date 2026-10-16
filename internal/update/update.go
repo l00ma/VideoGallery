@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -285,7 +286,7 @@ func checkWritable(dir string) error {
 // replaceFile remplace dst par src. Sous Linux un renommage par-dessus un
 // exécutable en cours d'utilisation est permis ; sous Windows il est refusé :
 // on écarte alors l'ancien fichier en « .old » (autorisé même en cours
-// d'exécution), supprimé au démarrage suivant par CleanOld.
+// d'exécution), que CleanOld supprime dès que le nouveau processus démarre.
 func replaceFile(src, dst string) error {
 	if err := os.Rename(src, dst); err == nil {
 		return nil
@@ -303,10 +304,46 @@ func replaceFile(src, dst string) error {
 }
 
 // CleanOld supprime les « .old » laissés par une mise à jour précédente.
+//
+// Juste après une mise à jour, le nouveau processus démarre avant que l'ancien
+// ne soit fermé : sous Windows, son exécutable (devenu « .old ») ne peut pas
+// encore être supprimé. Ce qui résiste est donc retenté en arrière-plan
+// pendant oldRetryFor, le temps que l'ancien processus se termine.
 func CleanOld(dir string) {
-	for name := range managed(runtime.GOOS) {
-		_ = os.Remove(filepath.Join(dir, name+".old"))
+	rest := removeOld(dir, nil)
+	if len(rest) == 0 {
+		return
 	}
+	deadline, every := time.Now().Add(oldRetryFor), oldRetryEvery
+	go func() {
+		for len(rest) > 0 && time.Now().Before(deadline) {
+			time.Sleep(every)
+			rest = removeOld(dir, rest)
+		}
+	}()
+}
+
+var (
+	oldRetryFor   = time.Minute
+	oldRetryEvery = 500 * time.Millisecond
+)
+
+// removeOld supprime les « .old » de names (tous ceux de la liste fermée si
+// names est nil) et renvoie ceux qui existent encore.
+func removeOld(dir string, names []string) []string {
+	if names == nil {
+		for name := range managed(runtime.GOOS) {
+			names = append(names, name)
+		}
+	}
+	var rest []string
+	for _, name := range names {
+		err := os.Remove(filepath.Join(dir, name+".old"))
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			rest = append(rest, name)
+		}
+	}
+	return rest
 }
 
 func (c *Client) get(ctx context.Context, u string) (*http.Response, error) {

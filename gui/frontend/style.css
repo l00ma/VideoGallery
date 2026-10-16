@@ -40,6 +40,7 @@ main {
   flex-direction: column;
   gap: 12px;
   padding: 14px 16px 8px;
+  overflow-y: auto; /* fenêtre trop basse : défiler plutôt que chevaucher */
 }
 
 .card {

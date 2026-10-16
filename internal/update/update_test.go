@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestNewer(t *testing.T) {
@@ -226,4 +227,42 @@ func TestRefreshShortcuts(t *testing.T) {
 	if ok, _ := RefreshShortcuts(dir); ok {
 		t.Error("une entrée d'un autre dossier ne doit pas être modifiée")
 	}
+}
+
+// Un « .old » encore verrouillé (ici simulé par un répertoire non vide, que
+// os.Remove refuse) est supprimé dès qu'il se libère.
+func TestCleanOldRetries(t *testing.T) {
+	oldFor, oldEvery := oldRetryFor, oldRetryEvery
+	oldRetryFor, oldRetryEvery = 5*time.Second, 10*time.Millisecond
+	defer func() { oldRetryFor, oldRetryEvery = oldFor, oldEvery }()
+
+	dir := t.TempDir()
+	exe := "videogallery"
+	if runtime.GOOS == "windows" {
+		exe += ".exe"
+	}
+	free := filepath.Join(dir, "LICENSE.old")
+	locked := filepath.Join(dir, exe+".old")
+	if err := os.WriteFile(free, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(locked, "verrou"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	CleanOld(dir)
+	if _, err := os.Stat(free); !os.IsNotExist(err) {
+		t.Fatalf("LICENSE.old devrait être supprimé tout de suite : %v", err)
+	}
+	if _, err := os.Stat(locked); err != nil {
+		t.Fatalf("le .old verrouillé ne peut pas déjà avoir disparu : %v", err)
+	}
+
+	os.Remove(filepath.Join(locked, "verrou")) // l'ancien processus se ferme
+	for start := time.Now(); time.Since(start) < 3*time.Second; time.Sleep(10 * time.Millisecond) {
+		if _, err := os.Stat(locked); os.IsNotExist(err) {
+			return
+		}
+	}
+	t.Fatal("le .old n'a pas été supprimé une fois libéré")
 }

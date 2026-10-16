@@ -83,7 +83,7 @@ Ouvre ensuite `pages/index.html`.
 
 L'interface signale une nouvelle version au démarrage (désactivable) et se met à jour d'un clic, puis redémarre. En ligne de commande : `videogallery -update`. Seuls les fichiers déjà installés et fournis par la release sont remplacés, et l'entrée de menu Linux est rafraîchie. L'archive est vérifiée avec l'empreinte SHA-256 de la release ; elle n'est pas signée.
 
-> Cette fonction interroge l'API GitHub sans authentification : elle ne marche que si les releases du dépôt sont publiques.
+> La recherche interroge l'API publique de GitHub, sans authentification ; la seule information transmise est la version du programme (en-tête `User-Agent`), en plus de l'adresse IP inhérente à toute requête.
 
 ## Compiler soi-même
 

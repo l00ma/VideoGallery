@@ -24,7 +24,7 @@ import (
 	xdraw "golang.org/x/image/draw"
 )
 
-const Version = "1.2.0"
+const Version = "1.3.0"
 
 var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 

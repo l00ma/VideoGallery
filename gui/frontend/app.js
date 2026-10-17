@@ -16,6 +16,8 @@ const el = {
   checkUpdates: $("checkUpdates"), checkNow: $("checkNow"),
   updateBar: $("updateBar"), updateText: $("updateText"), updateProgress: $("updateProgress"),
   updateNow: $("updateNow"), updateNotes: $("updateNotes"), updateLater: $("updateLater"),
+  ffmpegBar: $("ffmpegBar"), ffmpegText: $("ffmpegText"), ffmpegProgress: $("ffmpegProgress"),
+  ffmpegGet: $("ffmpegGet"),
 };
 
 let pendingUpdate = null; // release proposée (objet renvoyé par CheckUpdate)
@@ -234,14 +236,68 @@ function onUpdateProgress({ done, total }) {
   }
 }
 
-// La fenêtre suit la hauteur du bandeau de mise à jour : elle grandit quand il
-// apparaît (ou passe sur deux lignes) et rétrécit d'autant quand il disparaît,
-// pour que le reste du formulaire garde sa place. Les tailles Wails sont en
-// pixels logiques, comme celles du DOM (Windows : mise à l'échelle DPI incluse).
+// ---------- ffmpeg (Windows) ----------
+
+// Proposé seulement quand ffmpeg est introuvable et sous Windows (FFmpegOffer
+// renvoie null ailleurs). Hors ligne, le bandeau s'affiche quand même :
+// FFmpegInstall retentera et dira ce qui ne va pas.
+async function offerFFmpeg() {
+  let build;
+  try {
+    build = await backend().FFmpegOffer();
+    if (build === null) return;
+  } catch (_) { /* hors ligne : bouton sans version ni taille */ }
+  el.ffmpegText.textContent = "ffmpeg est introuvable : il est nécessaire pour créer une galerie.";
+  if (build) el.ffmpegGet.textContent = `Télécharger ffmpeg ${build.version} (${Math.round(build.size / 1e6)} Mo)`;
+  el.ffmpegBar.hidden = false;
+}
+
+async function installFFmpeg() {
+  el.ffmpegGet.disabled = true;
+  el.ffmpegProgress.hidden = false;
+  el.ffmpegProgress.removeAttribute("value");
+  el.ffmpegText.textContent = "Téléchargement de ffmpeg…";
+  try {
+    const problem = await backend().FFmpegInstall();
+    el.ffmpegProgress.hidden = true;
+    if (problem) {
+      el.ffmpegGet.disabled = false;
+      el.ffmpegText.textContent = "ffmpeg a été installé mais reste inutilisable : " + problem;
+      return;
+    }
+    toolsProblem = "";
+    el.ffmpegGet.hidden = true;
+    el.ffmpegText.textContent = "ffmpeg est installé : vous pouvez créer votre galerie.";
+    log("ffmpeg installé dans le dossier « ffmpeg » du programme.", "ok");
+    refreshState();
+    setTimeout(() => { el.ffmpegBar.hidden = true; }, 5000);
+  } catch (e) {
+    el.ffmpegProgress.hidden = true;
+    el.ffmpegGet.disabled = false;
+    el.ffmpegText.textContent = "Téléchargement de ffmpeg impossible : " + e;
+  }
+}
+
+function onFFmpegProgress({ done, total }) {
+  if (total > 0) {
+    el.ffmpegProgress.max = total;
+    el.ffmpegProgress.value = done;
+    el.ffmpegText.textContent = `Téléchargement de ffmpeg : ${Math.round(done / 1e6)} / ${Math.round(total / 1e6)} Mo`;
+  }
+}
+
+// La fenêtre suit la hauteur des bandeaux (mise à jour, ffmpeg) : elle
+// grandit quand l'un apparaît (ou passe sur deux lignes) et rétrécit d'autant
+// quand il disparaît, pour que le reste du formulaire garde sa place. Les
+// tailles Wails sont en pixels logiques, comme celles du DOM (Windows : mise à
+// l'échelle DPI incluse).
 let barSpace = 0;
 
-async function fitUpdateBar() {
-  const space = el.updateBar.hidden ? 0 : el.updateBar.offsetHeight + 12; // 12 = gap de <main>
+async function fitBars() {
+  let space = 0;
+  for (const bar of [el.updateBar, el.ffmpegBar]) {
+    if (!bar.hidden) space += bar.offsetHeight + 12; // 12 = gap de <main>
+  }
   const delta = space - barSpace;
   barSpace = space;
   if (!delta) return;
@@ -275,6 +331,7 @@ async function init() {
   rt().EventsOn("progress", onProgress);
   rt().EventsOn("done", onDone);
   rt().EventsOn("updateProgress", onUpdateProgress);
+  rt().EventsOn("ffmpegProgress", onFFmpegProgress);
 
   const [prefs, version, problem] = await Promise.all([
     backend().LoadPrefs(), backend().Version(), backend().ToolsStatus(),
@@ -304,7 +361,11 @@ async function init() {
     if (pendingUpdate && pendingUpdate.url) rt().BrowserOpenURL(pendingUpdate.url);
   });
 
-  new ResizeObserver(fitUpdateBar).observe(el.updateBar);
+  const barObserver = new ResizeObserver(fitBars);
+  barObserver.observe(el.updateBar);
+  barObserver.observe(el.ffmpegBar);
+  el.ffmpegGet.addEventListener("click", installFFmpeg);
+  if (toolsProblem) offerFFmpeg();
   if (prefs.checkUpdates) checkUpdate(false);
 }
 

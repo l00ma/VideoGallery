@@ -3,6 +3,8 @@
 /gui/build/bin/
 /videogallery
 /videogallery.exe
+/videogallery-cli
+/videogallery-cli.exe
 
 # Vidéos et galeries de test
 /test/

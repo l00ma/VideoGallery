@@ -88,6 +88,7 @@ type ghRelease struct {
 	Assets     []struct {
 		Name string `json:"name"`
 		URL  string `json:"browser_download_url"`
+		Size int64  `json:"size"`
 	} `json:"assets"`
 }
 
@@ -95,26 +96,9 @@ type ghRelease struct {
 // sinon nil. Une release sans archive pour la plateforme courante est
 // signalée par une erreur : on ne propose pas une mise à jour impossible.
 func (c *Client) Latest(ctx context.Context, current string) (*Release, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.APIURL+"/repos/"+Repo+"/releases/latest", nil)
+	gr, err := c.latestRelease(ctx, Repo, "VideoGallery/"+current)
 	if err != nil {
 		return nil, err
-	}
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "VideoGallery/"+current)
-	resp, err := c.HTTP.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub a répondu %s", resp.Status)
-	}
-	var gr ghRelease
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&gr); err != nil {
-		return nil, fmt.Errorf("réponse GitHub illisible : %w", err)
 	}
 	if gr.Draft || gr.Prerelease {
 		return nil, nil
@@ -142,6 +126,33 @@ func (c *Client) Latest(ctx context.Context, current string) (*Release, error) {
 		return nil, fmt.Errorf("la version %s n'a pas d'archive %s/%s", latest, c.GOOS, c.GOARCH)
 	}
 	return rel, nil
+}
+
+// latestRelease interroge l'API GitHub (sans authentification) sur la
+// dernière release du dépôt « propriétaire/nom ».
+func (c *Client) latestRelease(ctx context.Context, repo, userAgent string) (*ghRelease, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.APIURL+"/repos/"+repo+"/releases/latest", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", userAgent)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("GitHub a répondu %s", resp.Status)
+	}
+	var gr ghRelease
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&gr); err != nil {
+		return nil, fmt.Errorf("réponse GitHub illisible : %w", err)
+	}
+	return &gr, nil
 }
 
 // Newer indique si la version a est strictement plus récente que b
@@ -181,17 +192,31 @@ func parseVersion(v string) ([3]int, bool) {
 	return out, true
 }
 
+// GUIName et CLIName donnent le nom des exécutables livrés pour goos. Le
+// suffixe -cli évite que les deux noms se confondent là où la casse est
+// ignorée (Windows, clés FAT/exFAT) : jusqu'à la 1.1.0, « videogallery.exe »
+// et « VideoGallery.exe » s'écrasaient l'un l'autre.
+func GUIName(goos string) string { return "VideoGallery" + exeExt(goos) }
+
+func CLIName(goos string) string { return "videogallery-cli" + exeExt(goos) }
+
+// legacyCLIName est l'ancien nom du CLI (jusqu'à la 1.1.0).
+func legacyCLIName(goos string) string { return "videogallery" + exeExt(goos) }
+
+func exeExt(goos string) string {
+	if goos == "windows" {
+		return ".exe"
+	}
+	return ""
+}
+
 // managed liste les fichiers d'une archive que la mise à jour peut remplacer,
 // avec leur mode. Seuls ceux déjà présents dans le dossier d'installation sont
 // touchés : quelqu'un qui n'a copié que l'exécutable n'obtient que lui.
 func managed(goos string) map[string]os.FileMode {
-	ext := ""
-	if goos == "windows" {
-		ext = ".exe"
-	}
 	return map[string]os.FileMode{
-		"VideoGallery" + ext:       0o755,
-		"videogallery" + ext:       0o755,
+		GUIName(goos):              0o755,
+		CLIName(goos):              0o755,
 		"LICENSE":                  0o644,
 		"LISEZMOI.txt":             0o644,
 		"THIRD_PARTY_LICENSES.txt": 0o644,
@@ -267,10 +292,47 @@ func (c *Client) Apply(ctx context.Context, rel *Release, dir string, progress f
 		}
 		done = append(done, name)
 	}
+	if name, err := migrateCLI(c.GOOS, staged, dir); err != nil {
+		return done, err
+	} else if name != "" {
+		done = append(done, name)
+	}
 	if len(done) == 0 {
 		return nil, errors.New("aucun fichier à mettre à jour dans " + dir)
 	}
 	return done, nil
+}
+
+// migrateCLI installe le CLI sous son nouveau nom là où l'ancien
+// (legacyCLIName) est présent, puis retire l'ancien. Sous Windows, l'ancien nom
+// désigne souvent le GUI lui-même (casse ignorée, le CLI avait été écrasé) : il
+// est alors gardé, et le CLI disparu est réinstallé. Renvoie le nom installé.
+func migrateCLI(goos, staged, dir string) (string, error) {
+	cli := CLIName(goos)
+	src := filepath.Join(staged, cli)
+	legacy := filepath.Join(dir, legacyCLIName(goos))
+	if _, err := os.Stat(src); err != nil {
+		return "", nil // absent de l'archive
+	}
+	if _, err := os.Lstat(filepath.Join(dir, cli)); err == nil {
+		return "", nil // déjà migré
+	}
+	legacyInfo, err := os.Lstat(legacy)
+	if err != nil {
+		return "", nil // pas de CLI installé ici
+	}
+	if err := os.Rename(src, filepath.Join(dir, cli)); err != nil {
+		return "", fmt.Errorf("installation de %s : %w", cli, err)
+	}
+	if gui, err := os.Lstat(filepath.Join(dir, GUIName(goos))); err == nil && os.SameFile(gui, legacyInfo) {
+		return cli, nil
+	}
+	// Sous Windows un exécutable en cours d'exécution ne peut pas être
+	// supprimé, seulement renommé : CleanOld finira le travail.
+	if err := os.Remove(legacy); err != nil {
+		_ = os.Rename(legacy, legacy+".old")
+	}
+	return cli, nil
 }
 
 func checkWritable(dir string) error {
@@ -335,6 +397,7 @@ func removeOld(dir string, names []string) []string {
 		for name := range managed(runtime.GOOS) {
 			names = append(names, name)
 		}
+		names = append(names, legacyCLIName(runtime.GOOS))
 	}
 	var rest []string
 	for _, name := range names {

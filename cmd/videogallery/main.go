@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -207,7 +209,12 @@ func run() int {
 	tools, err := gallery.FindTools()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "erreur:", err)
-		fmt.Fprintln(os.Stderr, "ffmpeg est requis pour extraire les captures (Ubuntu : sudo apt install ffmpeg).")
+		if update.NewClient().FFmpegSupported() {
+			fmt.Fprintln(os.Stderr, "ffmpeg est requis pour extraire les captures. Pour l'installer : lancez VideoGallery.exe\n"+
+				"et cliquez sur « Télécharger ffmpeg », ou placez ffmpeg.exe et ffprobe.exe à côté du programme.")
+		} else {
+			fmt.Fprintln(os.Stderr, "ffmpeg est requis pour extraire les captures (Ubuntu : sudo apt install ffmpeg).")
+		}
 		return 1
 	}
 	opts.Tools = tools
@@ -272,6 +279,9 @@ func selfUpdate() int {
 		return 1
 	}
 	fmt.Println("Fichiers remplacés :", done)
+	if cli := update.CLIName(runtime.GOOS); filepath.Base(self) != cli && slices.Contains(done, cli) {
+		fmt.Printf("La ligne de commande s'appelle désormais %s (l'ancien nom est retiré).\n", cli)
+	}
 	if ok, err := update.RefreshShortcuts(filepath.Dir(self)); err != nil {
 		fmt.Fprintln(os.Stderr, "attention :", err)
 	} else if ok {

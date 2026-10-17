@@ -38,7 +38,8 @@ UTILISATION
 
   Formats acceptés : {formats} (les sous-dossiers sont ignorés).
   ffmpeg et ffprobe sont requis : ils sont cherchés à côté du programme,
-  puis dans le PATH (Ubuntu : sudo apt install ffmpeg).
+  puis dans son sous-dossier « ffmpeg » (là où la GUI Windows les
+  télécharge), puis dans le PATH (Ubuntu : sudo apt install ffmpeg).
 
 ÉCRIRE LES OPTIONS
   Une seule règle : deux tirets, le nom de l'option, puis sa valeur s'il y

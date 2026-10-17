@@ -25,7 +25,8 @@ type Tools struct {
 }
 
 // FindTools cherche ffmpeg et ffprobe à côté de l'exécutable (livraison
-// Windows en zip), puis dans le PATH.
+// Windows en zip), puis dans son sous-dossier « ffmpeg » (où la GUI Windows
+// les télécharge, voir update.FFmpegDir), puis dans le PATH.
 func FindTools() (Tools, error) {
 	ffmpeg, err := findTool("ffmpeg")
 	if err != nil {
@@ -44,14 +45,16 @@ func findTool(name string) (string, error) {
 		file += ".exe"
 	}
 	if self, err := os.Executable(); err == nil {
-		local := filepath.Join(filepath.Dir(self), file)
-		if st, err := os.Stat(local); err == nil && !st.IsDir() {
-			return local, nil
+		dir := filepath.Dir(self)
+		for _, local := range []string{filepath.Join(dir, file), filepath.Join(dir, "ffmpeg", file)} {
+			if st, err := os.Stat(local); err == nil && !st.IsDir() {
+				return local, nil
+			}
 		}
 	}
 	path, err := exec.LookPath(name)
 	if err != nil {
-		return "", fmt.Errorf("%s introuvable (ni à côté de l'exécutable, ni dans le PATH)", name)
+		return "", fmt.Errorf("%s introuvable (ni à côté du programme, ni dans son dossier « ffmpeg », ni dans le PATH)", name)
 	}
 	return path, nil
 }
@@ -119,12 +122,12 @@ type probeOutput struct {
 // portrait (rotation de 90° ou 270° dans les métadonnées), largeur et hauteur
 // sont échangées : c'est la résolution que voit le spectateur.
 func (t Tools) Probe(ctx context.Context, path string) (Meta, error) {
-	cmd := exec.CommandContext(ctx, t.FFprobe,
+	cmd := silence(exec.CommandContext(ctx, t.FFprobe,
 		"-v", "error",
 		"-select_streams", "v:0",
 		"-show_entries", "stream=codec_name,width,height:stream_tags=rotate:stream_side_data=rotation:format=duration:format_tags=creation_time",
 		"-of", "json",
-		path)
+		path))
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -165,7 +168,7 @@ func (t Tools) Probe(ctx context.Context, path string) (Meta, error) {
 // Frame extrait l'image située à l'instant « at » (secondes), mise à la
 // largeur donnée. La hauteur suit le ratio d'origine (arrondie au pair).
 func (t Tools) Frame(ctx context.Context, path string, at float64, width int) (image.Image, error) {
-	cmd := exec.CommandContext(ctx, t.FFmpeg,
+	cmd := silence(exec.CommandContext(ctx, t.FFmpeg,
 		"-v", "error",
 		"-threads", "1", // le parallélisme se fait entre vidéos
 		"-ss", strconv.FormatFloat(at, 'f', 3, 64),
@@ -173,7 +176,7 @@ func (t Tools) Frame(ctx context.Context, path string, at float64, width int) (i
 		"-frames:v", "1",
 		"-vf", fmt.Sprintf("scale=%d:-2", width),
 		"-c:v", "mjpeg", "-q:v", "2",
-		"-f", "image2pipe", "-")
+		"-f", "image2pipe", "-"))
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

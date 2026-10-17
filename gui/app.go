@@ -25,7 +25,9 @@ type App struct {
 	mu       sync.Mutex
 	cancel   context.CancelFunc // non nil pendant une génération
 	updating bool
-	pending  *update.Release // dernière release proposée par CheckUpdate
+	pending  *update.Release     // dernière release proposée par CheckUpdate
+	ffBuild  *update.FFmpegBuild // archive ffmpeg proposée par FFmpegOffer (Windows)
+	ffBusy   bool                // téléchargement de ffmpeg en cours
 
 	exe string // chemin réel de l'exécutable, relevé avant toute mise à jour
 }
@@ -64,9 +66,71 @@ func (a *App) Version() string { return gallery.Version }
 // message d'aide destiné à l'utilisateur.
 func (a *App) ToolsStatus() string {
 	if _, err := gallery.FindTools(); err != nil {
-		return err.Error() + ". ffmpeg est requis (Ubuntu : sudo apt install ffmpeg ; Windows : placer ffmpeg.exe et ffprobe.exe à côté du programme)."
+		if update.NewClient().FFmpegSupported() {
+			return err.Error() + ". ffmpeg est nécessaire pour extraire les captures : cliquez sur « Télécharger ffmpeg » en haut de la fenêtre (ou placez ffmpeg.exe et ffprobe.exe à côté du programme)."
+		}
+		return err.Error() + ". ffmpeg est nécessaire pour extraire les captures (Ubuntu : sudo apt install ffmpeg)."
 	}
 	return ""
+}
+
+// FFmpegOffer renvoie l'archive ffmpeg que FFmpegInstall installerait, pour
+// que l'interface en affiche la version et la taille ; nil hors de Windows.
+func (a *App) FFmpegOffer() (*update.FFmpegBuild, error) {
+	c := update.NewClient()
+	if !c.FFmpegSupported() {
+		return nil, nil
+	}
+	b, err := c.LatestFFmpeg(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	a.mu.Lock()
+	a.ffBuild = b
+	a.mu.Unlock()
+	return b, nil
+}
+
+// FFmpegInstall télécharge et installe ffmpeg dans le sous-dossier « ffmpeg »
+// du programme (Windows), l'archive étant celle trouvée par FFmpegOffer
+// (jamais une adresse venue de l'interface). Progression : événement
+// « ffmpegProgress ». Renvoie ensuite ToolsStatus (vide si ffmpeg est prêt).
+func (a *App) FFmpegInstall() (string, error) {
+	a.mu.Lock()
+	switch {
+	case a.ffBusy:
+		a.mu.Unlock()
+		return "", errors.New("le téléchargement de ffmpeg est déjà en cours")
+	case a.cancel != nil:
+		a.mu.Unlock()
+		return "", errors.New("une génération est en cours")
+	case a.exe == "":
+		a.mu.Unlock()
+		return "", errors.New("emplacement du programme introuvable")
+	}
+	a.ffBusy = true
+	b := a.ffBuild
+	a.mu.Unlock()
+	defer func() {
+		a.mu.Lock()
+		a.ffBusy = false
+		a.mu.Unlock()
+	}()
+
+	c := update.NewClient()
+	if b == nil {
+		var err error
+		if b, err = c.LatestFFmpeg(a.ctx); err != nil {
+			return "", err
+		}
+	}
+	err := c.InstallFFmpeg(a.ctx, b, filepath.Dir(a.exe), func(done, total int64) {
+		runtime.EventsEmit(a.ctx, "ffmpegProgress", map[string]int64{"done": done, "total": total})
+	})
+	if err != nil {
+		return "", err
+	}
+	return a.ToolsStatus(), nil
 }
 
 // LoadPrefs renvoie les préférences enregistrées (ou celles par défaut).
@@ -106,6 +170,10 @@ func (a *App) Generate(p prefs.Prefs) error {
 	if a.cancel != nil {
 		a.mu.Unlock()
 		return errors.New("une génération est déjà en cours")
+	}
+	if a.ffBusy {
+		a.mu.Unlock()
+		return errors.New("attendez la fin du téléchargement de ffmpeg")
 	}
 	ctx, cancel := context.WithCancel(a.ctx)
 	a.cancel = cancel

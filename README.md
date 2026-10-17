@@ -36,17 +36,19 @@ Le tout tient dans de simples fichiers HTML/CSS/JPEG : tu peux copier le dossier
 
 | | Linux (64 bits) | Windows (64 bits) |
 |---|---|---|
-| **ffmpeg et ffprobe** (obligatoires, non fournis) | `sudo apt install ffmpeg` | à télécharger sur [ffmpeg.org](https://ffmpeg.org/download.html), puis `ffmpeg.exe` et `ffprobe.exe` à côté du programme |
+| **ffmpeg et ffprobe** (obligatoires, non fournis) | `sudo apt install ffmpeg` | bouton « Télécharger ffmpeg » de l'interface (voir ci-dessous), ou `ffmpeg.exe` et `ffprobe.exe` de [ffmpeg.org](https://ffmpeg.org/download.html) à côté du programme |
 | **Pour l'interface graphique** | `sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0` | [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (déjà là sur Windows 11 et Windows 10 à jour) |
 | **Pour la ligne de commande seule** | rien d'autre | rien d'autre |
 
-ffmpeg et ffprobe sont cherchés d'abord à côté de l'exécutable, puis dans le `PATH`.
+ffmpeg et ffprobe sont cherchés d'abord à côté de l'exécutable, puis dans son sous-dossier `ffmpeg`, puis dans le `PATH`.
+
+**Sous Windows**, si ffmpeg est introuvable, l'interface propose un bouton « Télécharger ffmpeg » : elle récupère le build *lgpl-shared* de la dernière branche stable publié par [BtbN](https://github.com/BtbN/FFmpeg-Builds) sur GitHub (environ 77 Mo, 150 Mo une fois installé ; la variante LGPL suffit, le programme ne fait que décoder), le compare à l'empreinte SHA-256 publiée dans la même release, puis installe `ffmpeg.exe`, `ffprobe.exe`, leurs DLL et la licence dans le sous-dossier `ffmpeg` du programme. Le dossier du programme doit être modifiable (pas `Program Files`). Pour désinstaller ffmpeg, il suffit de supprimer ce sous-dossier. Comme pour les mises à jour du programme, c'est une vérification d'intégrité : la confiance repose sur le compte GitHub de BtbN. Sous Linux, le gestionnaire de paquets s'en charge (`sudo apt install ffmpeg`).
 
 > Ubuntu 24.04 : seul `webkit2gtk` 4.1 est disponible, c'est celui qu'utilise le programme.
 
 ## Utilisation
 
-Les archives `VideoGallery-<version>-linux-amd64.tar.gz` et `…-windows-amd64.zip` des [releases](../../releases) contiennent l'interface graphique (`VideoGallery`) et la ligne de commande (`videogallery`).
+Les archives `VideoGallery-<version>-linux-amd64.tar.gz` et `…-windows-amd64.zip` des [releases](../../releases) contiennent l'interface graphique (`VideoGallery`) et la ligne de commande (`videogallery-cli`, `videogallery-cli.exe` sous Windows). Jusqu'à la 1.1.0, elle s'appelait `videogallery` : sous Windows, qui ignore la casse, ce nom se confondait avec `VideoGallery.exe` et l'un écrasait l'autre. La mise à jour automatique renomme l'ancien CLI.
 
 ### Interface graphique
 
@@ -57,12 +59,12 @@ Sous Linux, `./install.sh` ajoute « The Video Gallery » au menu des applicatio
 ### Ligne de commande
 
 ```bash
-videogallery [--option valeur]... <répertoire des vidéos>
+videogallery-cli [--option valeur]... <répertoire des vidéos>
 
-videogallery --cols 4 --rows 5 --name "Vacances" ~/Vidéos/vacances
-videogallery --sort date-desc --open ~/Vidéos/vacances
-videogallery --bg "#3d3846" --fg "#baaf91" ~/Vidéos/vacances
-videogallery --help    # aide complète : syntaxe, exemples, codes de retour
+videogallery-cli --cols 4 --rows 5 --name "Vacances" ~/Vidéos/vacances
+videogallery-cli --sort date-desc --open ~/Vidéos/vacances
+videogallery-cli --bg "#3d3846" --fg "#baaf91" ~/Vidéos/vacances
+videogallery-cli --help    # aide complète : syntaxe, exemples, codes de retour
 ```
 
 Une seule syntaxe : `--option valeur`, ou `--option` seule pour une option oui/non (`--open`, `--force`). Les valeurs qui contiennent une espace ou commencent par `#` (les couleurs) se mettent entre guillemets doubles, qui fonctionnent sous Linux comme sous Windows. Les anciennes écritures (`-cols 3`, `--cols=3`) sont encore acceptées avec un avertissement, mais seront refusées à partir de la version 2.0.0.
@@ -89,7 +91,7 @@ Ouvre ensuite `pages/index.html`.
 
 ### Mises à jour
 
-L'interface signale une nouvelle version au démarrage (désactivable) et se met à jour d'un clic, puis redémarre. En ligne de commande : `videogallery --update`. Seuls les fichiers déjà installés et fournis par la release sont remplacés, et l'entrée de menu Linux est rafraîchie. L'archive est vérifiée avec l'empreinte SHA-256 de la release ; elle n'est pas signée.
+L'interface signale une nouvelle version au démarrage (désactivable) et se met à jour d'un clic, puis redémarre. En ligne de commande : `videogallery-cli --update`. Seuls les fichiers déjà installés et fournis par la release sont remplacés, et l'entrée de menu Linux est rafraîchie. L'archive est vérifiée avec l'empreinte SHA-256 de la release ; elle n'est pas signée.
 
 > La recherche interroge l'API publique de GitHub, sans authentification ; la seule information transmise est la version du programme (en-tête `User-Agent`), en plus de l'adresse IP inhérente à toute requête.
 
@@ -99,7 +101,7 @@ Prérequis : Go 1.22 pour le moteur. L'interface (`gui/`) demande Go 1.25, tél�
 
 ```bash
 # moteur en ligne de commande (aucune dépendance système)
-go build ./cmd/videogallery
+go build -o videogallery-cli ./cmd/videogallery
 go vet ./... && go test -race ./...    # le test d'intégration est ignoré sans ffmpeg
 
 # interface graphique + archives Linux et Windows dans dist/
@@ -115,10 +117,11 @@ La version Windows est cross-compilée depuis Linux, sans CGO.
 
 | Dossier | Contenu |
 |---|---|
-| `cmd/videogallery` | ligne de commande |
+| `cmd/videogallery` | ligne de commande (`help.go` : l'aide `--help`) |
 | `internal/gallery` | moteur : analyse des vidéos, planches, pages HTML (templates embarqués) |
 | `internal/prefs` | préférences JSON |
-| `internal/update` | recherche et installation des mises à jour |
+| `internal/update` | recherche et installation des mises à jour ; téléchargement de ffmpeg (Windows) |
+| `internal/opener` | ouverture de la galerie dans le navigateur (CLI `--open` et GUI) |
 | `gui/` | interface [Wails v2](https://wails.io) (HTML/CSS/JS pur, sans npm), sous-module séparé |
 | `packaging/linux/` | entrée de menu (`.desktop`) et `install.sh` |
 

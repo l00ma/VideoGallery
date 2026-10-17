@@ -100,16 +100,16 @@ func TestLatestNothingNewer(t *testing.T) {
 func TestApplyLinux(t *testing.T) {
 	top := "VideoGallery-9.9.9-linux-amd64/"
 	c, _ := fakeRelease(t, "linux", map[string]string{
-		top + "VideoGallery":   "gui-new",
-		top + "videogallery":   "cli-new",
-		top + "LISEZMOI.txt":   "readme-new",
-		top + "../evil":        "x",
-		top + "sub/install.sh": "nested",
-		"autre/VideoGallery":   "wrong-dir",
+		top + "VideoGallery":     "gui-new",
+		top + "videogallery-cli": "cli-new",
+		top + "LISEZMOI.txt":     "readme-new",
+		top + "../evil":          "x",
+		top + "sub/install.sh":   "nested",
+		"autre/VideoGallery":     "wrong-dir",
 	}, false)
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "VideoGallery"), []byte("gui-old"), 0o755)
-	os.WriteFile(filepath.Join(dir, "videogallery"), []byte("cli-old"), 0o755)
+	os.WriteFile(filepath.Join(dir, "videogallery-cli"), []byte("cli-old"), 0o755)
 	// LISEZMOI.txt volontairement absent : il ne doit pas être créé.
 
 	rel, err := c.Latest(context.Background(), "2.0.1")
@@ -123,7 +123,7 @@ func TestApplyLinux(t *testing.T) {
 	if len(done) != 2 {
 		t.Errorf("remplacés : %v, attendu 2 fichiers", done)
 	}
-	for f, want := range map[string]string{"VideoGallery": "gui-new", "videogallery": "cli-new"} {
+	for f, want := range map[string]string{"VideoGallery": "gui-new", "videogallery-cli": "cli-new"} {
 		got, _ := os.ReadFile(filepath.Join(dir, f))
 		if string(got) != want {
 			t.Errorf("%s = %q, attendu %q", f, got, want)
@@ -237,7 +237,7 @@ func TestCleanOldRetries(t *testing.T) {
 	defer func() { oldRetryFor, oldRetryEvery = oldFor, oldEvery }()
 
 	dir := t.TempDir()
-	exe := "videogallery"
+	exe := "videogallery-cli"
 	if runtime.GOOS == "windows" {
 		exe += ".exe"
 	}
@@ -265,4 +265,72 @@ func TestCleanOldRetries(t *testing.T) {
 		}
 	}
 	t.Fatal("le .old n'a pas été supprimé une fois libéré")
+}
+
+// Windows ignore la casse : deux fichiers gérés ne doivent pas s'y confondre
+// (VideoGallery.exe écrasait videogallery.exe jusqu'à la 1.1.0), ni sous Linux
+// sur une clé FAT/exFAT.
+func TestManagedNamesDistinctIgnoringCase(t *testing.T) {
+	for _, goos := range []string{"linux", "windows"} {
+		seen := map[string]string{}
+		for name := range managed(goos) {
+			low := strings.ToLower(name)
+			if prev, ok := seen[low]; ok {
+				t.Errorf("%s : %q et %q se confondent", goos, prev, name)
+			}
+			seen[low] = name
+		}
+	}
+}
+
+// Une installation 1.1.0 (CLI nommé « videogallery ») reçoit le CLI sous son
+// nouveau nom et perd l'ancien.
+func TestApplyMigratesLegacyCLI(t *testing.T) {
+	top := "VideoGallery-9.9.9-linux-amd64/"
+	c, _ := fakeRelease(t, "linux", map[string]string{
+		top + "VideoGallery":     "gui-new",
+		top + "videogallery-cli": "cli-new",
+	}, false)
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "VideoGallery"), []byte("gui-old"), 0o755)
+	os.WriteFile(filepath.Join(dir, "videogallery"), []byte("cli-old"), 0o755)
+
+	rel, err := c.Latest(context.Background(), "1.1.0")
+	if err != nil || rel == nil {
+		t.Fatalf("Latest = %+v, %v", rel, err)
+	}
+	if _, err := c.Apply(context.Background(), rel, dir, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(filepath.Join(dir, "videogallery-cli")); string(got) != "cli-new" {
+		t.Errorf("videogallery-cli = %q, attendu cli-new", got)
+	}
+	if _, err := os.Lstat(filepath.Join(dir, "videogallery")); !os.IsNotExist(err) {
+		t.Errorf("l'ancien CLI devrait avoir disparu : %v", err)
+	}
+	if got, _ := os.ReadFile(filepath.Join(dir, "VideoGallery")); string(got) != "gui-new" {
+		t.Errorf("VideoGallery = %q, attendu gui-new", got)
+	}
+}
+
+// Ancien nom confondu avec le GUI (Windows, casse ignorée ; simulé par un lien
+// physique) : le GUI est gardé et le CLI réinstallé.
+func TestMigrateCLIKeepsGUI(t *testing.T) {
+	staged, dir := t.TempDir(), t.TempDir()
+	os.WriteFile(filepath.Join(staged, "videogallery-cli.exe"), []byte("cli-new"), 0o755)
+	gui := filepath.Join(dir, "VideoGallery.exe")
+	os.WriteFile(gui, []byte("gui"), 0o755)
+	if err := os.Link(gui, filepath.Join(dir, "videogallery.exe")); err != nil {
+		t.Skip("liens physiques indisponibles :", err)
+	}
+	name, err := migrateCLI("windows", staged, dir)
+	if err != nil || name != "videogallery-cli.exe" {
+		t.Fatalf("migrateCLI = %q, %v", name, err)
+	}
+	if got, _ := os.ReadFile(gui); string(got) != "gui" {
+		t.Errorf("le GUI a été touché : %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "videogallery.exe")); err != nil {
+		t.Errorf("l'ancien nom (le GUI) ne devait pas être supprimé : %v", err)
+	}
 }

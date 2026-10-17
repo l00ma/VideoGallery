@@ -7,7 +7,7 @@
 #   ./build.sh --skip-tests     saute gofmt / go vet / go test
 #
 # Produit, pour chaque plateforme, une archive contenant l'interface
-# graphique (VideoGallery), la ligne de commande (videogallery), un LISEZMOI
+# graphique (VideoGallery), la ligne de commande (videogallery-cli), un LISEZMOI
 # et les licences des composants tiers, plus un fichier SHA256SUMS.
 #
 # ffmpeg n'est PAS embarqué : voir le LISEZMOI de chaque archive.
@@ -100,8 +100,10 @@ build_platform() { # $1 = linux | windows
 
 	step "Ligne de commande ($os/amd64)"
 	mkdir -p "$DIST/stage-$os"
+	# -cli : là où la casse est ignorée, « videogallery » écraserait
+	# « VideoGallery » (même nom que update.CLIName).
 	GOOS="$os" GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" \
-		-o "$DIST/stage-$os/videogallery$ext" ./cmd/videogallery
+		-o "$DIST/stage-$os/videogallery-cli$ext" ./cmd/videogallery
 	cp "$gui_out" "$DIST/stage-$os/VideoGallery$ext"
 }
 
@@ -167,9 +169,9 @@ Génère une galerie HTML statique pour un répertoire de vidéos (mp4, m4v, mov
 La galerie s'ouvre directement dans le navigateur, sans serveur.
 
 CONTENU
-  VideoGallery   interface graphique
-  videogallery   même moteur, en ligne de commande
-  install.sh     ajoute « The Video Gallery » au menu des applications
+  VideoGallery       interface graphique
+  videogallery-cli   même moteur, en ligne de commande
+  install.sh         ajoute « The Video Gallery » au menu des applications
 
 PRÉREQUIS
   sudo apt install ffmpeg libwebkit2gtk-4.1-0 libgtk-3-0
@@ -178,8 +180,8 @@ PRÉREQUIS
 
 UTILISATION
   ./VideoGallery                       (interface graphique)
-  ./videogallery --help                (ligne de commande)
-  ./videogallery --cols 4 --rows 5 --name "Ma galerie" /chemin/vers/videos
+  ./videogallery-cli --help            (ligne de commande)
+  ./videogallery-cli --cols 4 --rows 5 --name "Ma galerie" /chemin/vers/videos
 
   Les options s'écrivent --option valeur (--help détaille tout).
 
@@ -196,7 +198,7 @@ MENU DES APPLICATIONS (optionnel, sans sudo)
 MISES À JOUR
   L'interface signale une nouvelle version au démarrage (case « Rechercher les
   mises à jour au démarrage » pour la désactiver) et se met à jour d'un clic
-  en redémarrant. En ligne de commande : ./videogallery --update
+  en redémarrant. En ligne de commande : ./videogallery-cli --update
   (un avis s'affiche au plus une fois par jour ; --no-update-check le coupe).
   Seuls les fichiers de ce dossier fournis par la release sont remplacés, et
   l'entrée de menu installée par install.sh est rafraîchie.
@@ -216,21 +218,29 @@ Génère une galerie HTML statique pour un répertoire de vidéos (mp4, m4v, mov
 La galerie s'ouvre directement dans le navigateur, sans serveur.
 
 CONTENU
-  VideoGallery.exe   interface graphique
-  videogallery.exe   même moteur, en ligne de commande
+  VideoGallery.exe       interface graphique
+  videogallery-cli.exe   même moteur, en ligne de commande
 
 PRÉREQUIS
-  1. ffmpeg et ffprobe (non fournis) : téléchargez un « build » Windows depuis
-     https://ffmpeg.org/download.html puis copiez ffmpeg.exe et ffprobe.exe
-     dans ce dossier, à côté de VideoGallery.exe. Le programme les y cherche
-     en premier (sinon dans le PATH).
+  1. ffmpeg et ffprobe (non fournis dans ce zip). Le plus simple : lancez
+     VideoGallery.exe ; s'il ne trouve pas ffmpeg, il propose un bouton
+     « Télécharger ffmpeg » (environ 77 Mo à télécharger, 150 Mo installés).
+     Il récupère les builds publiés par BtbN sur GitHub (licence LGPL),
+     vérifie leur empreinte SHA-256 et les installe dans le sous-dossier
+     « ffmpeg » de ce dossier. Pour les retirer, supprimez ce sous-dossier.
+     Ce dossier doit donc être modifiable : évitez « Program Files ».
+     Sinon, à la main : téléchargez un build Windows depuis
+     https://ffmpeg.org/download.html et copiez ffmpeg.exe et ffprobe.exe
+     à côté de VideoGallery.exe.
+     Le programme cherche ffmpeg à côté de lui, puis dans son sous-dossier
+     « ffmpeg », puis dans le PATH.
   2. Microsoft WebView2 Runtime : déjà présent sur Windows 11 et sur les
      Windows 10 à jour. Sinon : https://developer.microsoft.com/microsoft-edge/webview2/
 
 UTILISATION
   Double-clic sur VideoGallery.exe, ou en ligne de commande :
-  videogallery.exe --cols 4 --rows 5 --name "Ma galerie" C:\\chemin\\vers\\videos
-  videogallery.exe --help              (aide complète)
+  videogallery-cli.exe --cols 4 --rows 5 --name "Ma galerie" C:\\chemin\\vers\\videos
+  videogallery-cli.exe --help          (aide complète)
 
   Les options s'écrivent --option valeur ; les valeurs qui contiennent une
   espace ou commencent par # se mettent entre guillemets doubles
@@ -242,7 +252,7 @@ vidéos. Ouvrez pages\\index.html.
 MISES À JOUR
   L'interface signale une nouvelle version au démarrage (case « Rechercher les
   mises à jour au démarrage » pour la désactiver) et se met à jour d'un clic
-  en redémarrant. En ligne de commande : videogallery.exe --update
+  en redémarrant. En ligne de commande : videogallery-cli.exe --update
   ffmpeg.exe et ffprobe.exe ne sont jamais touchés.
 
 NOTE
@@ -271,6 +281,11 @@ package_platform() { # $1 = linux | windows
 		chmod 755 "$stage/install.sh"
 	fi
 	write_licenses "$stage/THIRD_PARTY_LICENSES.txt" "$os"
+	# Windows (et les clés FAT/exFAT) ignorent la casse : deux noms qui ne
+	# diffèrent que par elle s'écraseraient à l'extraction.
+	local dup
+	dup=$(ls -A "$stage" | tr '[:upper:]' '[:lower:]' | sort | uniq -d)
+	[ -z "$dup" ] || fail "noms en conflit (casse ignorée) dans l'archive $os : $dup"
 	rm -rf "${DIST:?}/$name"
 	mv "$stage" "$DIST/$name"
 	(

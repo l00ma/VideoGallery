@@ -26,7 +26,8 @@ Le tout tient dans de simples fichiers HTML/CSS/JPEG : tu peux copier le dossier
 ### Détails qui comptent
 
 - **Cache** : une image n'est régénérée que si elle est absente ou plus ancienne que la vidéo, et les métadonnées lues par ffprobe (durée, résolution, date de tournage) sont gardées dans `img/meta.json`. Relancer sur le même dossier est quasi instantané (`--force` pour tout refaire).
-- **Tolérance aux pannes** : une vidéo illisible est ignorée et signalée, la galerie est générée avec les autres.
+- **Tolérance aux pannes** : une vidéo illisible est ignorée et signalée, la galerie est générée avec les autres. Un appel à ffmpeg resté sans réponse pendant 2 minutes (partage réseau déconnecté) est abandonné de la même façon, au lieu de figer la génération ; une fois le réseau rétabli, relancer reprend là où elle s'était arrêtée (images et métadonnées déjà obtenues sont gardées, `meta.json` étant enregistré au fil de l'eau).
+- **Partages réseau** : si les vidéos sont sur un partage (NFS, Samba/CIFS, dossier ouvert depuis le gestionnaire de fichiers, lecteur réseau Windows), 3 vidéos au plus sont traitées à la fois, pour ne pas saturer le serveur ; `--jobs` permet de choisir.
 - **Prudence sur le dossier de sortie** : la génération supprime les pages et images obsolètes, donc elle **refuse** d'écrire dans un dossier existant qui contient autre chose qu'une galerie.
 - **Formats** : un `.mov` (téléphone, appareil photo) est lu par le navigateur comme un MP4. Une vidéo en HEVC/H.265 (format par défaut des iPhone) est acceptée, mais sa lecture dépend du navigateur et du système : la génération le signale, et la page de la vidéo propose de l'ouvrir avec le lecteur du système. Les `.mkv` et `.avi` ne sont pas pris en charge.
 - **Rotation** : la résolution affichée tient compte des vidéos tournées à 90°/270°.
@@ -76,7 +77,7 @@ Une seule syntaxe : `--option valeur`, ou `--option` seule pour une option oui/n
 | `--cols`, `--rows` | `4`, `5` | miniatures par ligne / par colonne |
 | `--bg`, `--fg` | `#baaf91`, `#333333` | couleurs de fond et de texte (`#rrggbb`) |
 | `--frame-width` | `320` | largeur en pixels d'une capture de la planche |
-| `--jobs` | nombre de CPU | vidéos traitées en parallèle |
+| `--jobs` | nombre de CPU (3 au plus sur un partage réseau) | vidéos traitées en parallèle |
 | `--sort` | `name` | ordre des vidéos : `name`, `name-desc`, `date-desc` (récentes d'abord), `date`, `duration-desc` (longues d'abord), `duration`, `size-desc` (lourdes d'abord), `size`, `none` (ordre du système de fichiers). La date est celle du tournage si la vidéo l'indique, sinon celle du fichier |
 | `--no-sort` | | équivaut à `--sort none` (conservé pour compatibilité) |
 | `--open` | | ouvrir la galerie dans le navigateur à la fin |

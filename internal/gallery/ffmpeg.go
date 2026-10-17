@@ -66,6 +66,59 @@ func lastLine(s string) string {
 	return strings.TrimSpace(lines[len(lines)-1])
 }
 
+// callTimeout borne chaque appel à ffmpeg ou ffprobe. Une capture prend
+// d'ordinaire moins d'une seconde ; au-delà de cette limite, la lecture est
+// sans doute bloquée (partage réseau qui ne répond plus) : la vidéo est alors
+// mise en échec au lieu de figer toute la génération.
+var callTimeout = 2 * time.Minute
+
+// killGrace : après avoir tué un outil qui ne répond plus, temps laissé à son
+// processus pour se terminer. Un processus bloqué dans le noyau sur une lecture
+// réseau ignore même SIGKILL ; on l'abandonne alors plutôt que de l'attendre.
+var killGrace = 5 * time.Second
+
+// run lance un outil et renvoie sa sortie standard. En cas d'échec, l'erreur
+// porte la dernière ligne de sa sortie d'erreur.
+func run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	tctx, cancel := context.WithTimeout(ctx, callTimeout)
+	defer cancel()
+	cmd := silence(exec.Command(name, args...))
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	waited := make(chan error, 1)
+	go func() { waited <- cmd.Wait() }()
+
+	select {
+	case err := <-waited:
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", err, lastLine(stderr.String()))
+		}
+		return stdout.Bytes(), nil
+	case <-tctx.Done():
+		cmd.Process.Kill()
+		select {
+		case <-waited:
+		case <-time.After(killGrace):
+			// abandonné : ses tampons ne sont plus lus, Wait finira seul
+		}
+		if err := ctx.Err(); err != nil {
+			return nil, err // annulation demandée
+		}
+		return nil, fmt.Errorf("aucune réponse après %s, interrompu (lecture bloquée ? partage réseau déconnecté ?)", waitLabel(callTimeout))
+	}
+}
+
+// waitLabel écrit une durée d'attente en français (« 2 min », « 30 s »).
+func waitLabel(d time.Duration) string {
+	if d >= time.Minute && d%time.Minute == 0 {
+		return fmt.Sprintf("%d min", d/time.Minute)
+	}
+	return fmt.Sprintf("%g s", d.Seconds())
+}
+
 // Meta regroupe les métadonnées d'une vidéo utiles à la planche.
 type Meta struct {
 	Duration float64 `json:"duration"` // secondes
@@ -122,17 +175,14 @@ type probeOutput struct {
 // portrait (rotation de 90° ou 270° dans les métadonnées), largeur et hauteur
 // sont échangées : c'est la résolution que voit le spectateur.
 func (t Tools) Probe(ctx context.Context, path string) (Meta, error) {
-	cmd := silence(exec.CommandContext(ctx, t.FFprobe,
+	out, err := run(ctx, t.FFprobe,
 		"-v", "error",
 		"-select_streams", "v:0",
 		"-show_entries", "stream=codec_name,width,height:stream_tags=rotate:stream_side_data=rotation:format=duration:format_tags=creation_time",
 		"-of", "json",
-		path))
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+		path)
 	if err != nil {
-		return Meta{}, fmt.Errorf("ffprobe: %w: %s", err, lastLine(stderr.String()))
+		return Meta{}, fmt.Errorf("ffprobe: %w", err)
 	}
 	var po probeOutput
 	if err := json.Unmarshal(out, &po); err != nil {
@@ -168,7 +218,7 @@ func (t Tools) Probe(ctx context.Context, path string) (Meta, error) {
 // Frame extrait l'image située à l'instant « at » (secondes), mise à la
 // largeur donnée. La hauteur suit le ratio d'origine (arrondie au pair).
 func (t Tools) Frame(ctx context.Context, path string, at float64, width int) (image.Image, error) {
-	cmd := silence(exec.CommandContext(ctx, t.FFmpeg,
+	out, err := run(ctx, t.FFmpeg,
 		"-v", "error",
 		"-threads", "1", // le parallélisme se fait entre vidéos
 		"-ss", strconv.FormatFloat(at, 'f', 3, 64),
@@ -176,12 +226,9 @@ func (t Tools) Frame(ctx context.Context, path string, at float64, width int) (i
 		"-frames:v", "1",
 		"-vf", fmt.Sprintf("scale=%d:-2", width),
 		"-c:v", "mjpeg", "-q:v", "2",
-		"-f", "image2pipe", "-"))
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+		"-f", "image2pipe", "-")
 	if err != nil {
-		return nil, fmt.Errorf("ffmpeg: %w: %s", err, lastLine(stderr.String()))
+		return nil, fmt.Errorf("ffmpeg: %w", err)
 	}
 	if len(out) == 0 {
 		return nil, fmt.Errorf("aucune image extraite à %.1fs", at)

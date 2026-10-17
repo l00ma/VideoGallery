@@ -27,10 +27,17 @@ type metaEntry struct {
 	Meta
 }
 
+// metaCheckpoint : nombre de vidéos lues par ffprobe au-delà duquel meta.json
+// est réécrit en cours de génération. Une génération interrompue (coupure
+// réseau, programme tué) ne perd ainsi que les dernières lectures.
+const metaCheckpoint = 20
+
 // metaCache est partagé par les goroutines de buildImages.
 type metaCache struct {
 	mu      sync.Mutex
 	entries map[string]metaEntry
+	dirty   int        // entrées ajoutées depuis le dernier enregistrement
+	saveMu  sync.Mutex // un seul enregistrement à la fois
 }
 
 func loadMetaCache(imgDir string) *metaCache {
@@ -59,18 +66,34 @@ func (c *metaCache) put(v Video, m Meta) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.entries[v.Name] = metaEntry{Size: v.Size, ModTime: v.ModTime.UnixNano(), Meta: m}
+	c.dirty++
 }
 
-// save n'écrit que les vidéos de la galerie (les disparues sont oubliées),
-// via un fichier temporaire comme les images.
-func (c *metaCache) save(imgDir string, items []item) error {
-	keep := make(map[string]metaEntry, len(items))
+// checkpoint enregistre le cache si assez d'entrées ont été ajoutées depuis
+// le dernier enregistrement. Un échec n'est pas grave (simple ralentissement
+// au prochain passage) : il est ignoré.
+func (c *metaCache) checkpoint(imgDir string, names []string) {
 	c.mu.Lock()
-	for _, it := range items {
-		if e, ok := c.entries[it.Name]; ok {
-			keep[it.Name] = e
+	due := c.dirty >= metaCheckpoint
+	c.mu.Unlock()
+	if due {
+		c.save(imgDir, names)
+	}
+}
+
+// save n'écrit que les vidéos nommées (les disparues sont oubliées), via un
+// fichier temporaire comme les images.
+func (c *metaCache) save(imgDir string, names []string) error {
+	c.saveMu.Lock()
+	defer c.saveMu.Unlock()
+	keep := make(map[string]metaEntry, len(names))
+	c.mu.Lock()
+	for _, name := range names {
+		if e, ok := c.entries[name]; ok {
+			keep[name] = e
 		}
 	}
+	c.dirty = 0
 	c.mu.Unlock()
 	data, err := json.MarshalIndent(metaJSON{Version: metaVersion, Videos: keep}, "", " ")
 	if err != nil {

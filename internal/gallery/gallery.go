@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,6 +20,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"unicode/utf8"
+
+	xdraw "golang.org/x/image/draw"
 )
 
 const Version = "1.2.0"
@@ -130,6 +133,7 @@ func (o *Options) applyDefaults() error {
 
 // Run génère la galerie.
 func Run(ctx context.Context, opts Options) (*Result, error) {
+	autoJobs := opts.Jobs <= 0
 	if err := opts.applyDefaults(); err != nil {
 		return nil, err
 	}
@@ -156,6 +160,10 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		return nil, fmt.Errorf("aucune vidéo (%s) dans %s", Formats, opts.VideoDir)
 	}
 	opts.Log("%d vidéo(s) trouvée(s) dans %s", len(videos), opts.VideoDir)
+	if fs, ok := networkFS(opts.VideoDir); ok && autoJobs && opts.Jobs > netJobs {
+		opts.Jobs = netJobs
+		opts.Log("Vidéos sur un partage réseau (%s) : %d vidéos traitées à la fois pour ménager le réseau et le serveur (option --jobs du CLI pour changer)", fs, netJobs)
+	}
 
 	if err := checkOutDir(opts.OutDir); err != nil {
 		return nil, err
@@ -171,6 +179,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	metas := loadMetaCache(imgDir)
 	items, failures := buildImages(ctx, opts, videos, imgDir, metas)
 	if err := ctx.Err(); err != nil {
+		metas.save(imgDir, videoNames(videos)) // la prochaine génération en profitera
 		return nil, err
 	}
 	if len(items) == 0 {
@@ -194,7 +203,11 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		}
 	}
 	pruneImages(imgDir, items)
-	if err := metas.save(imgDir, items); err != nil {
+	names := make([]string, len(items))
+	for i, it := range items {
+		names[i] = it.Name
+	}
+	if err := metas.save(imgDir, names); err != nil {
 		opts.Log("Cache des métadonnées non enregistré : %v", err) // simple ralentissement au prochain passage
 	}
 
@@ -205,6 +218,12 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 	res.Pages = pages
 	return res, nil
 }
+
+// netJobs : parallélisme par défaut quand les vidéos sont sur un partage
+// réseau. Chaque capture est une lecture à un endroit différent du fichier ;
+// une douzaine de vidéos lues à la fois saturent un serveur à disques durs
+// (et le lien) sans aller plus vite.
+const netJobs = 3
 
 // markerFile signale un répertoire produit par ce programme : il autorise les
 // générations suivantes à y réécrire (et à y supprimer les fichiers obsolètes).
@@ -252,6 +271,7 @@ func buildImages(ctx context.Context, opts Options, videos []Video, imgDir strin
 	results := make([]*item, len(videos))
 	errs := make([]error, len(videos))
 
+	names := videoNames(videos)
 	sem := make(chan struct{}, opts.Jobs)
 	var wg sync.WaitGroup
 	var done atomic.Int32
@@ -266,6 +286,7 @@ func buildImages(ctx context.Context, opts Options, videos []Video, imgDir strin
 			defer func() { <-sem }()
 			defer func() { opts.Progress(int(done.Add(1)), len(videos)) }()
 			it, err := buildItem(ctx, opts, v, imgDir, metas)
+			metas.checkpoint(imgDir, names)
 			if err != nil {
 				errs[i] = err
 				if ctx.Err() == nil {
@@ -288,6 +309,14 @@ func buildImages(ctx context.Context, opts Options, videos []Video, imgDir strin
 		}
 	}
 	return items, failures
+}
+
+func videoNames(videos []Video) []string {
+	names := make([]string, len(videos))
+	for i, v := range videos {
+		names[i] = v.Name
+	}
+	return names
 }
 
 // sheetLayout identifie la mise en page de la planche (en-tête, horodatages).
@@ -363,12 +392,29 @@ func buildItem(ctx context.Context, opts Options, v Video, imgDir string, metas 
 
 	opts.Log("Génération de la planche de %s", v.Name)
 	var err error
+	tw := thumbWidth(opts.Cols)
 	times := FrameTimes(meta.Duration)
 	frames := make([]image.Image, sheetFrames)
 	for i, t := range times {
-		if frames[i], err = opts.Tools.Frame(ctx, v.Path, t, opts.FrameWidth); err != nil {
+		w := opts.FrameWidth
+		if i == thumbFrame {
+			w = max(w, tw) // sert aussi de miniature : une seule extraction
+		}
+		if frames[i], err = opts.Tools.Frame(ctx, v.Path, t, w); err != nil {
 			return nil, err
 		}
+	}
+
+	// La miniature est la capture centrale (sans horodatage), à sa propre
+	// largeur ; elle est extraite une seule fois, à la plus grande des deux
+	// largeurs, puis réduite ici pour l'autre usage (un appel à ffmpeg de
+	// moins par vidéo, soit une lecture de moins sur un partage réseau).
+	thumb := frames[thumbFrame]
+	if size := frames[0].Bounds().Size(); thumb.Bounds().Size() != size {
+		frames[thumbFrame] = resize(thumb, size.X, size.Y)
+	}
+	if b := thumb.Bounds(); tw < b.Dx() {
+		thumb = resize(thumb, tw, evenHeight(b.Dx(), b.Dy(), tw))
 	}
 	sheet := ComposeSheet(frames, times, SheetInfo{
 		Name: v.Name, Size: v.Size, Width: meta.Width, Height: meta.Height, Duration: meta.Duration,
@@ -377,14 +423,6 @@ func buildItem(ctx context.Context, opts Options, v Video, imgDir string, metas 
 		return nil, err
 	}
 
-	// La miniature est la capture centrale (sans horodatage), à sa propre
-	// largeur ; si elle coïncide avec celle des captures, on la réutilise.
-	thumb := frames[thumbFrame]
-	if tw := thumbWidth(opts.Cols); tw != opts.FrameWidth {
-		if thumb, err = opts.Tools.Frame(ctx, v.Path, times[thumbFrame], tw); err != nil {
-			return nil, err
-		}
-	}
 	if err := writeJPEG(thumbPath, thumb); err != nil {
 		return nil, err
 	}
@@ -392,6 +430,20 @@ func buildItem(ctx context.Context, opts Options, v Video, imgDir string, metas 
 	tb := thumb.Bounds()
 	it.ThumbW, it.ThumbH = tb.Dx(), tb.Dy()
 	return it, nil
+}
+
+// resize réduit une image aux dimensions données (Catmull-Rom, comme le
+// filtre bicubique de ffmpeg).
+func resize(src image.Image, w, h int) image.Image {
+	dst := image.NewRGBA(image.Rect(0, 0, w, h))
+	xdraw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), xdraw.Src, nil)
+	return dst
+}
+
+// evenHeight : hauteur, arrondie au pair, d'une image w×h ramenée à la largeur
+// width (comme « scale=width:-2 » de ffmpeg).
+func evenHeight(w, h, width int) int {
+	return max(2, int(math.Round(float64(h)*float64(width)/float64(w)/2))*2)
 }
 
 // upToDate: le fichier existe et n'est pas plus ancien que la vidéo.

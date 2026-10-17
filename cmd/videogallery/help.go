@@ -41,6 +41,12 @@ UTILISATION
   puis dans son sous-dossier « ffmpeg » (là où la GUI Windows les
   télécharge), puis dans le PATH (Ubuntu : sudo apt install ffmpeg).
 
+  Une génération interrompue (Ctrl+C, coupure réseau...) reprend là où elle
+  s'est arrêtée : les images déjà faites sont gardées. Une capture restée
+  sans réponse pendant 2 minutes (partage réseau déconnecté) est abandonnée :
+  sa vidéo est signalée en échec (code de retour 3), les autres sont
+  traitées ; relancez la commande une fois le réseau rétabli.
+
 ÉCRIRE LES OPTIONS
   Une seule règle : deux tirets, le nom de l'option, puis sa valeur s'il y
   en a une.
@@ -144,7 +150,10 @@ GÉNÉRATION
                      la commande sur le même dossier est presque instantané.
 
   --jobs N           Nombre de vidéos traitées en même temps.
-                     Défaut : autant que de processeurs.
+                     Défaut : autant que de processeurs, mais 3 au plus si
+                     les vidéos sont sur un partage réseau (NFS, Samba,
+                     dossier ouvert depuis le gestionnaire de fichiers...) :
+                     davantage saturerait le serveur sans aller plus vite.
 
 MISES À JOUR
   --update           Télécharge et installe la dernière version publiée sur
